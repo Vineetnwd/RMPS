@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -35,8 +35,8 @@ const COLORS = {
   lightGray: '#E2E8F0',
   error: '#DC2626',
   success: '#10B981',
-  background: '#F8FAFC',
-  cream: '#FFF8E7',
+  background: '#FDF5F7',
+  cream: '#FFF5EC',
   cardBg: '#FFFFFF',
   present: '#10B981',
   absent: '#DC2626',
@@ -124,6 +124,10 @@ const DottedPattern = ({ style, rows = 3, cols = 4, dotColor = COLORS.secondary 
 
 export default function AttendanceScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ ct_class?: string; ct_section?: string; branch_id?: string }>();
+
+  // If ct_class & ct_section are passed, the teacher can only mark attendance for that class
+  const isClassLocked = !!(params.ct_class && params.ct_section);
 
   // Animation refs
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -131,9 +135,9 @@ export default function AttendanceScreen() {
   const floatAnim = useRef(new Animated.Value(0)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
 
-  // State for class and section selection
-  const [selectedClass, setSelectedClass] = useState('II');
-  const [selectedSection, setSelectedSection] = useState('A');
+  // State for class and section selection — initialise from params if available
+  const [selectedClass, setSelectedClass] = useState(params.ct_class || 'II');
+  const [selectedSection, setSelectedSection] = useState(params.ct_section || 'A');
   const [showClassModal, setShowClassModal] = useState(false);
   const [showSectionModal, setShowSectionModal] = useState(false);
 
@@ -514,33 +518,35 @@ export default function AttendanceScreen() {
       >
         <View style={styles.classSelectionLeft}>
           <TouchableOpacity
-            style={styles.classSelector}
-            onPress={() => setShowClassModal(true)}
+            style={[styles.classSelector, isClassLocked && { opacity: 0.7 }]}
+            onPress={() => !isClassLocked && setShowClassModal(true)}
+            activeOpacity={isClassLocked ? 1 : 0.7}
           >
             <View style={styles.selectorIconContainer}>
-              <Ionicons name="school" size={16} color={COLORS.secondary} />
+              <Ionicons name={isClassLocked ? 'lock-closed' : 'school'} size={16} color={isClassLocked ? COLORS.primary : COLORS.secondary} />
             </View>
             <View style={styles.selectorContent}>
               <Text style={styles.classSelectorLabel}>Class</Text>
               <View style={styles.classSelectorValue}>
                 <Text style={styles.selectedValueText}>{selectedClass}</Text>
-                <Ionicons name="chevron-down" size={14} color={COLORS.gray} />
+                {!isClassLocked && <Ionicons name="chevron-down" size={14} color={COLORS.gray} />}
               </View>
             </View>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.classSelector}
-            onPress={() => setShowSectionModal(true)}
+            style={[styles.classSelector, isClassLocked && { opacity: 0.7 }]}
+            onPress={() => !isClassLocked && setShowSectionModal(true)}
+            activeOpacity={isClassLocked ? 1 : 0.7}
           >
             <View style={styles.selectorIconContainer}>
-              <Ionicons name="grid" size={16} color={COLORS.secondary} />
+              <Ionicons name={isClassLocked ? 'lock-closed' : 'grid'} size={16} color={isClassLocked ? COLORS.primary : COLORS.secondary} />
             </View>
             <View style={styles.selectorContent}>
               <Text style={styles.classSelectorLabel}>Section</Text>
               <View style={styles.classSelectorValue}>
                 <Text style={styles.selectedValueText}>{selectedSection}</Text>
-                <Ionicons name="chevron-down" size={14} color={COLORS.gray} />
+                {!isClassLocked && <Ionicons name="chevron-down" size={14} color={COLORS.gray} />}
               </View>
             </View>
           </TouchableOpacity>
@@ -1043,15 +1049,15 @@ export default function AttendanceScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#FDF5F7',
   },
 
   // Header
   header: {
     backgroundColor: COLORS.primary,
-    paddingTop: 50,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
+    paddingTop: 30,
+    paddingBottom: 10,
+    paddingHorizontal: 14,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
     overflow: 'hidden',
@@ -1095,9 +1101,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1108,7 +1114,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 15,
     fontWeight: '800',
     color: COLORS.white,
     letterSpacing: 0.5,
@@ -1120,9 +1126,9 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   editButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    width: 28,
+    height: 28,
+    borderRadius: 10,
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1154,36 +1160,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: COLORS.cardBg,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    backgroundColor: '#FDF5F7',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     marginHorizontal: 16,
-    marginTop: -12,
-    borderRadius: 16,
+    marginTop: -6,
+    borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.03,
     shadowRadius: 10,
-    elevation: 5,
+    elevation: 1,
   },
   classSelectionLeft: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 8,
   },
   classSelector: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.cream,
+    backgroundColor: '#FFF9F0',
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 12,
-    gap: 10,
+    gap: 6,
     borderWidth: 1,
     borderColor: 'rgba(212, 175, 55, 0.2)',
   },
   selectorIconContainer: {
-    width: 32,
-    height: 32,
+    width: 26,
+    height: 26,
     borderRadius: 10,
     backgroundColor: 'rgba(212, 175, 55, 0.2)',
     justifyContent: 'center',
@@ -1203,7 +1209,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   selectedValueText: {
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: '800',
     color: COLORS.ink,
   },
@@ -1212,7 +1218,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(122, 12, 46, 0.08)',
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 8,
     borderRadius: 12,
     gap: 8,
   },
@@ -1222,17 +1228,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 14,
-    paddingHorizontal: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
     marginTop: 12,
     marginHorizontal: 16,
-    backgroundColor: COLORS.cardBg,
+    backgroundColor: '#FDF5F7',
     borderRadius: 12,
   },
   toggleSummaryLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 6,
   },
   toggleSummaryIcon: {
     width: 28,
@@ -1243,7 +1249,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   toggleSummaryText: {
-    fontSize: 14,
+    fontSize: 12,
     color: COLORS.ink,
     fontWeight: '600',
   },
@@ -1251,33 +1257,33 @@ const styles = StyleSheet.create({
   // Summary Row
   summaryRow: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 6,
   },
   summaryCard: {
     flex: 1,
     alignItems: 'center',
-    backgroundColor: COLORS.cardBg,
-    paddingVertical: 14,
+    backgroundColor: '#FDF5F7',
+    paddingVertical: 10,
     paddingHorizontal: 8,
-    borderRadius: 14,
+    borderRadius: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.03,
     shadowRadius: 5,
-    elevation: 2,
+    elevation: 1,
   },
   summaryIconContainer: {
-    width: 36,
-    height: 36,
+    width: 28,
+    height: 28,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
   },
   summaryValue: {
-    fontSize: 20,
+    fontSize: 14,
     fontWeight: '800',
     color: COLORS.ink,
     marginBottom: 2,
@@ -1303,25 +1309,25 @@ const styles = StyleSheet.create({
   actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingVertical: 10,
-    gap: 12,
+    gap: 8,
   },
   searchContainer: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.cardBg,
+    backgroundColor: '#FDF5F7',
     borderRadius: 12,
     paddingHorizontal: 14,
-    paddingVertical: 12,
-    gap: 10,
+    paddingVertical: 8,
+    gap: 6,
     borderWidth: 1,
-    borderColor: COLORS.lightGray,
+    borderColor: '#F5E8EB',
   },
   searchInput: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 12,
     color: COLORS.ink,
     padding: 0,
     fontWeight: '500',
@@ -1329,7 +1335,7 @@ const styles = StyleSheet.create({
   filterContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.cardBg,
+    backgroundColor: '#FDF5F7',
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 12,
@@ -1344,17 +1350,17 @@ const styles = StyleSheet.create({
   // Mark All Container
   markAllContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingVertical: 10,
-    gap: 12,
+    gap: 8,
   },
   markAllButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
     gap: 8,
   },
   markPresentButton: {
@@ -1364,14 +1370,14 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.error,
   },
   markAllText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '700',
     color: COLORS.white,
   },
 
   // Student List
   studentListContainer: {
-    padding: 16,
+    padding: 10,
     paddingBottom: 120,
   },
   loadingContainer: {
@@ -1386,10 +1392,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(122, 12, 46, 0.08)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 10,
   },
   loadingText: {
-    fontSize: 14,
+    fontSize: 12,
     color: COLORS.gray,
     fontWeight: '500',
   },
@@ -1400,22 +1406,22 @@ const styles = StyleSheet.create({
     padding: 40,
   },
   emptyIconContainer: {
-    width: 100,
-    height: 100,
+    width: 70,
+    height: 70,
     borderRadius: 50,
     backgroundColor: 'rgba(226, 232, 240, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 8,
   },
   emptyTitle: {
-    fontSize: 18,
+    fontSize: 12,
     fontWeight: '700',
     color: COLORS.ink,
     marginBottom: 8,
   },
   emptyText: {
-    fontSize: 14,
+    fontSize: 12,
     color: COLORS.gray,
   },
 
@@ -1424,15 +1430,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: COLORS.cardBg,
-    borderRadius: 16,
-    padding: 14,
+    backgroundColor: '#FDF5F7',
+    borderRadius: 12,
+    padding: 10,
     marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.03,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 1,
     borderLeftWidth: 4,
   },
   presentCard: {
@@ -1447,22 +1453,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   rollContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    width: 28,
+    height: 28,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
   },
   rollNumber: {
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: '800',
   },
   nameContainer: {
     flex: 1,
   },
   studentName: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     color: COLORS.ink,
     marginBottom: 4,
@@ -1509,9 +1515,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: COLORS.secondary,
-    borderRadius: 16,
+    borderRadius: 12,
     paddingVertical: 18,
-    gap: 12,
+    gap: 8,
     shadowColor: COLORS.secondary,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.35,
@@ -1521,12 +1527,12 @@ const styles = StyleSheet.create({
   submitButtonText: {
     color: COLORS.primary,
     fontWeight: '800',
-    fontSize: 17,
+    fontSize: 12,
     letterSpacing: 0.5,
   },
   submitButtonIcon: {
-    width: 32,
-    height: 32,
+    width: 26,
+    height: 26,
     borderRadius: 10,
     backgroundColor: COLORS.primary,
     justifyContent: 'center',
@@ -1539,18 +1545,18 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: 10,
   },
   modalContainer: {
     width: '100%',
     maxHeight: '70%',
-    backgroundColor: COLORS.cardBg,
+    backgroundColor: '#FDF5F7',
     borderRadius: 24,
     overflow: 'hidden',
   },
   dateModalContainer: {
     width: '100%',
-    backgroundColor: COLORS.cardBg,
+    backgroundColor: '#FDF5F7',
     borderRadius: 24,
     overflow: 'hidden',
   },
@@ -1558,32 +1564,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    padding: 10,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.lightGray,
+    borderBottomColor: '#F0F0F0',
   },
   modalHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
   },
   modalHeaderIcon: {
-    width: 40,
-    height: 40,
+    width: 26,
+    height: 26,
     borderRadius: 12,
     backgroundColor: 'rgba(212, 175, 55, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: '800',
     color: COLORS.ink,
   },
   modalCloseButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 28,
+    height: 28,
+    borderRadius: 10,
     backgroundColor: COLORS.lightGray,
     justifyContent: 'center',
     alignItems: 'center',
@@ -1596,15 +1602,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 16,
-    paddingHorizontal: 20,
+    paddingHorizontal: 14,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.lightGray,
+    borderBottomColor: '#F0F0F0',
   },
   modalOptionSelected: {
-    backgroundColor: COLORS.cream,
+    backgroundColor: '#FFF9F0',
   },
   modalOptionText: {
-    fontSize: 16,
+    fontSize: 12,
     color: COLORS.ink,
     fontWeight: '500',
   },
@@ -1615,7 +1621,7 @@ const styles = StyleSheet.create({
   modalCheckIcon: {
     width: 28,
     height: 28,
-    borderRadius: 14,
+    borderRadius: 10,
     backgroundColor: COLORS.success,
     justifyContent: 'center',
     alignItems: 'center',
@@ -1623,12 +1629,12 @@ const styles = StyleSheet.create({
 
   // Date Modal Styles
   dateModalContent: {
-    padding: 20,
+    padding: 10,
   },
   yearMonthSelection: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 20,
+    gap: 8,
+    marginBottom: 8,
   },
   yearSelector: {
     flex: 1,
@@ -1648,10 +1654,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: COLORS.cream,
+    backgroundColor: '#FFF9F0',
     borderRadius: 12,
     paddingHorizontal: 8,
-    paddingVertical: 12,
+    paddingVertical: 8,
     borderWidth: 1,
     borderColor: 'rgba(212, 175, 55, 0.2)',
   },
@@ -1659,43 +1665,43 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: COLORS.cream,
+    backgroundColor: '#FFF9F0',
     borderRadius: 12,
     paddingHorizontal: 8,
-    paddingVertical: 12,
+    paddingVertical: 8,
     borderWidth: 1,
     borderColor: 'rgba(212, 175, 55, 0.2)',
   },
   yearArrow: {
-    width: 32,
-    height: 32,
+    width: 26,
+    height: 26,
     borderRadius: 10,
     backgroundColor: 'rgba(122, 12, 46, 0.08)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   monthArrow: {
-    width: 32,
-    height: 32,
+    width: 26,
+    height: 26,
     borderRadius: 10,
     backgroundColor: 'rgba(122, 12, 46, 0.08)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   yearValue: {
-    fontSize: 18,
+    fontSize: 12,
     fontWeight: '800',
     color: COLORS.ink,
   },
   monthValue: {
-    fontSize: 18,
+    fontSize: 12,
     fontWeight: '800',
     color: COLORS.ink,
     flex: 1,
     textAlign: 'center',
   },
   dayGrid: {
-    marginBottom: 20,
+    marginBottom: 8,
   },
   weekdayHeader: {
     flexDirection: 'row',
@@ -1735,7 +1741,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
   },
   dayText: {
-    fontSize: 15,
+    fontSize: 12,
     color: COLORS.ink,
     fontWeight: '600',
   },
@@ -1754,18 +1760,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-end',
     borderTopWidth: 1,
-    borderTopColor: COLORS.lightGray,
+    borderTopColor: '#F0F0F0',
     paddingTop: 16,
-    gap: 12,
+    gap: 8,
   },
   cancelDateButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
     borderRadius: 12,
     backgroundColor: COLORS.lightGray,
   },
   cancelDateText: {
-    fontSize: 14,
+    fontSize: 12,
     color: COLORS.gray,
     fontWeight: '600',
   },
@@ -1773,13 +1779,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.secondary,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
     borderRadius: 12,
     gap: 8,
   },
   applyDateText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '700',
     color: COLORS.primary,
   },

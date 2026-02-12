@@ -31,8 +31,8 @@ const COLORS = {
   lightGray: '#E2E8F0',
   error: '#DC2626',
   success: '#10B981',
-  background: '#F8FAFC',
-  cream: '#FFF8E7',
+  background: '#FDF5F7',
+  cream: '#FFF5EC',
   cardBg: '#FFFFFF',
 };
 
@@ -200,11 +200,22 @@ export default function LeaveApplyScreen() {
         return;
       }
 
+      // Get branch_id from AsyncStorage or student_data
+      let branchId = await AsyncStorage.getItem('branch_id');
+      if (!branchId) {
+        const studentData = await AsyncStorage.getItem('student_data');
+        if (studentData) {
+          const parsed = JSON.parse(studentData);
+          branchId = parsed.branch_id ? parsed.branch_id.toString() : null;
+        }
+      }
+
       const payload = {
         student_id: studentId,
         from_date: formatDateForAPI(formData.from_date),
         to_date: formatDateForAPI(formData.to_date),
         cause: formData.cause.trim(),
+        branch_id: branchId ? parseInt(branchId) : null,
       };
 
       const response = await fetch(
@@ -604,16 +615,16 @@ export default function LeaveApplyScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#FDF5F7',
   },
 
   // Header
   header: {
     backgroundColor: COLORS.primary,
-    paddingTop: 50,
-    paddingBottom: 20,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    paddingTop: 30,
+    paddingBottom: 10,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
     overflow: 'hidden',
   },
   headerDecorations: {
@@ -621,9 +632,9 @@ const styles = StyleSheet.create({
   },
   headerBlob: {
     position: 'absolute',
-    width: 140,
-    height: 140,
-    borderRadius: 70,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     backgroundColor: COLORS.secondary,
     opacity: 0.12,
     top: -40,
@@ -660,18 +671,18 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   headerContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 14,
   },
   headerTop: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    marginBottom: 8,
   },
   backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -683,7 +694,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 15,
     fontWeight: '800',
     color: COLORS.white,
     letterSpacing: 0.3,
@@ -700,19 +711,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     backgroundColor: COLORS.white,
-    padding: 16,
-    borderRadius: 16,
-    gap: 14,
+    padding: 10,
+    borderRadius: 12,
+    gap: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.03,
     shadowRadius: 4,
-    elevation: 3,
+    elevation: 1,
   },
   infoIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
+    width: 26,
+    height: 26,
+    borderRadius: 10,
     backgroundColor: 'rgba(212, 175, 55, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -721,7 +732,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   infoText: {
-    fontSize: 13,
+    fontSize: 12,
     color: COLORS.gray,
     lineHeight: 20,
   },
@@ -730,14 +741,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 10,
     gap: 6,
-    backgroundColor: COLORS.cream,
+    backgroundColor: '#FFF9F0',
     alignSelf: 'flex-start',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 20,
+    borderRadius: 12,
   },
   daysCounterText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
     color: COLORS.secondary,
   },
@@ -747,12 +758,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   formContainer: {
-    padding: 20,
+    padding: 10,
   },
 
   // Input Group
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: 8,
   },
   labelContainer: {
     flexDirection: 'row',
@@ -761,15 +772,15 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   labelIcon: {
-    width: 24,
-    height: 24,
+    width: 18,
+    height: 18,
     borderRadius: 8,
     backgroundColor: 'rgba(212, 175, 55, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   label: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '700',
     color: COLORS.ink,
     textTransform: 'uppercase',
@@ -781,32 +792,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: COLORS.cardBg,
-    borderRadius: 16,
-    padding: 16,
+    backgroundColor: '#FDF5F7',
+    borderRadius: 12,
+    padding: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.03,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 1,
     borderWidth: 1,
     borderColor: 'rgba(0, 0, 0, 0.04)',
   },
   dateContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
   },
   dateIconContainer: {
-    width: 36,
-    height: 36,
+    width: 28,
+    height: 28,
     borderRadius: 10,
     backgroundColor: 'rgba(212, 175, 55, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   dateText: {
-    fontSize: 15,
+    fontSize: 12,
     fontWeight: '600',
     color: COLORS.ink,
   },
@@ -816,20 +827,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.secondary,
-    borderRadius: 16,
-    padding: 18,
-    marginBottom: 20,
-    gap: 14,
+    borderRadius: 12,
+    padding: 10,
+    marginBottom: 8,
+    gap: 8,
     shadowColor: COLORS.secondary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 4,
+    elevation: 1,
   },
   durationIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
+    width: 26,
+    height: 26,
+    borderRadius: 10,
     backgroundColor: 'rgba(255, 255, 255, 0.25)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -838,12 +849,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   durationValue: {
-    fontSize: 26,
+    fontSize: 20,
     fontWeight: '800',
     color: COLORS.primary,
   },
   durationLabel: {
-    fontSize: 13,
+    fontSize: 12,
     color: COLORS.primary,
     fontWeight: '600',
     marginTop: 2,
@@ -851,19 +862,19 @@ const styles = StyleSheet.create({
 
   // Text Area
   textAreaContainer: {
-    backgroundColor: COLORS.cardBg,
-    borderRadius: 16,
-    padding: 16,
+    backgroundColor: '#FDF5F7',
+    borderRadius: 12,
+    padding: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.03,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 1,
     borderWidth: 1,
     borderColor: 'rgba(0, 0, 0, 0.04)',
   },
   textArea: {
-    fontSize: 14,
+    fontSize: 12,
     color: COLORS.ink,
     minHeight: 120,
     textAlignVertical: 'top',
@@ -876,7 +887,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: COLORS.lightGray,
+    borderTopColor: '#F0F0F0',
   },
   charCount: {
     fontSize: 11,
@@ -914,8 +925,8 @@ const styles = StyleSheet.create({
   // Submit Button
   submitButton: {
     marginTop: 10,
-    marginBottom: 24,
-    borderRadius: 16,
+    marginBottom: 10,
+    borderRadius: 12,
     overflow: 'hidden',
     shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 4 },
@@ -932,47 +943,47 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: COLORS.primary,
     paddingVertical: 18,
-    gap: 10,
+    gap: 6,
     borderWidth: 2,
     borderColor: COLORS.secondary,
-    borderRadius: 16,
+    borderRadius: 12,
   },
   submitButtonText: {
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: '700',
     color: COLORS.white,
   },
 
   // Notes Card
   notesCard: {
-    backgroundColor: COLORS.cardBg,
-    borderRadius: 18,
-    padding: 20,
+    backgroundColor: '#FDF5F7',
+    borderRadius: 10,
+    padding: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.03,
     shadowRadius: 8,
-    elevation: 3,
-    marginBottom: 20,
+    elevation: 1,
+    marginBottom: 8,
     borderWidth: 1,
     borderColor: 'rgba(0, 0, 0, 0.04)',
   },
   notesHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
-    gap: 10,
+    marginBottom: 10,
+    gap: 6,
   },
   notesIconContainer: {
-    width: 32,
-    height: 32,
+    width: 26,
+    height: 26,
     borderRadius: 10,
     backgroundColor: 'rgba(212, 175, 55, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   notesTitle: {
-    fontSize: 15,
+    fontSize: 12,
     fontWeight: '700',
     color: COLORS.ink,
   },
@@ -980,7 +991,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     marginBottom: 12,
-    gap: 12,
+    gap: 8,
     paddingLeft: 4,
   },
   noteBullet: {
@@ -992,7 +1003,7 @@ const styles = StyleSheet.create({
   },
   noteText: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 12,
     color: COLORS.gray,
     lineHeight: 20,
   },

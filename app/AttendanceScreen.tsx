@@ -29,8 +29,8 @@ const COLORS = {
   lightGray: '#E2E8F0',
   error: '#DC2626',
   success: '#10B981',
-  background: '#F8FAFC',
-  cream: '#FFF8E7',
+  background: '#FDF5F7',
+  cream: '#FFF5EC',
   cardBg: '#FFFFFF',
   present: '#10B981',
   absent: '#DC2626',
@@ -92,9 +92,9 @@ const DottedPattern = ({ style, rows = 3, cols = 4, dotColor = COLORS.secondary 
             key={colIndex}
             style={[
               styles.dot,
-              { 
+              {
                 backgroundColor: dotColor,
-                opacity: 0.3 + (rowIndex * cols + colIndex) * 0.03 
+                opacity: 0.3 + (rowIndex * cols + colIndex) * 0.03
               },
             ]}
           />
@@ -201,10 +201,20 @@ export default function AttendanceScreen() {
       setError('');
 
       const studentId = await AsyncStorage.getItem('student_id');
-      
+
       if (!studentId) {
         router.replace('/index');
         return;
+      }
+
+      // Get branch_id from AsyncStorage or student_data
+      let branchId = await AsyncStorage.getItem('branch_id');
+      if (!branchId) {
+        const studentData = await AsyncStorage.getItem('student_data');
+        if (studentData) {
+          const parsed = JSON.parse(studentData);
+          branchId = parsed.branch_id ? parsed.branch_id.toString() : null;
+        }
       }
 
       const response = await fetch(
@@ -214,14 +224,17 @@ export default function AttendanceScreen() {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ student_id: studentId }),
+          body: JSON.stringify({
+            student_id: studentId,
+            branch_id: branchId ? parseInt(branchId) : null
+          }),
         }
       );
 
       const data = await response.json();
-      
+
       console.log('Attendance API Response:', data);
-      
+
       if (data && Array.isArray(data)) {
         setAttendanceData(data);
         await AsyncStorage.setItem('cached_attendance', JSON.stringify(data));
@@ -232,7 +245,7 @@ export default function AttendanceScreen() {
     } catch (err) {
       console.error('Error fetching attendance:', err);
       setError('Failed to load attendance');
-      
+
       try {
         const cachedAttendance = await AsyncStorage.getItem('cached_attendance');
         if (cachedAttendance) {
@@ -258,10 +271,10 @@ export default function AttendanceScreen() {
   const calculateStats = (data, month) => {
     const monthKey = formatMonthForAPI(month);
     console.log('Looking for month key:', monthKey);
-    
+
     const monthData = data.find(item => item.att_month === monthKey);
     console.log('Found month data:', monthData);
-    
+
     if (!monthData) {
       setStats({ present: 0, absent: 0, leave: 0, holiday: 0, total: 0 });
       return;
@@ -311,9 +324,9 @@ export default function AttendanceScreen() {
   const getAttendanceForDay = (day) => {
     const monthKey = formatMonthForAPI(selectedMonth);
     const monthData = attendanceData.find(item => item.att_month === monthKey);
-    
+
     if (!monthData) return null;
-    
+
     return monthData[`d_${day}`];
   };
 
@@ -348,20 +361,20 @@ export default function AttendanceScreen() {
     const daysInMonth = getDaysInMonth(selectedMonth);
     const firstDay = getFirstDayOfMonth(selectedMonth);
     const days = [];
-    
+
     for (let i = 0; i < firstDay; i++) {
       days.push(
         <View key={`empty-${i}`} style={styles.emptyDay} />
       );
     }
-    
+
     for (let day = 1; day <= daysInMonth; day++) {
       const attendance = getAttendanceForDay(day);
-      const isToday = 
+      const isToday =
         day === new Date().getDate() &&
         selectedMonth.getMonth() === new Date().getMonth() &&
         selectedMonth.getFullYear() === new Date().getFullYear();
-      
+
       days.push(
         <View key={day} style={styles.dayCell}>
           <View
@@ -389,7 +402,7 @@ export default function AttendanceScreen() {
         </View>
       );
     }
-    
+
     return days;
   };
 
@@ -411,7 +424,7 @@ export default function AttendanceScreen() {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
-      
+
       {/* Header */}
       <View style={styles.header}>
         {/* Background Decorations */}
@@ -444,12 +457,12 @@ export default function AttendanceScreen() {
             >
               <Ionicons name="arrow-back" size={22} color={COLORS.white} />
             </TouchableOpacity>
-            
+
             <View style={styles.headerTitleContainer}>
               <Text style={styles.headerTitle}>Attendance</Text>
               <Text style={styles.headerSubtitle}>View your records</Text>
             </View>
-            
+
             <TouchableOpacity
               style={styles.refreshButton}
               onPress={onRefresh}
@@ -459,10 +472,10 @@ export default function AttendanceScreen() {
           </View>
 
           {/* Stats Cards */}
-          <Animated.View 
+          <Animated.View
             style={[
               styles.statsRow,
-              { 
+              {
                 opacity: fadeAnim,
                 transform: [{ translateY: slideAnim }]
               }
@@ -502,7 +515,7 @@ export default function AttendanceScreen() {
           </Animated.View>
 
           {/* Attendance Percentage */}
-          <Animated.View 
+          <Animated.View
             style={[
               styles.percentageCard,
               { transform: [{ scale: pulseAnim }] }
@@ -518,14 +531,14 @@ export default function AttendanceScreen() {
               </View>
             </View>
             <View style={styles.progressBarContainer}>
-              <View 
+              <View
                 style={[
-                  styles.progressBar, 
-                  { 
+                  styles.progressBar,
+                  {
                     width: `${getAttendancePercentage()}%`,
                     backgroundColor: parseFloat(getAttendancePercentage()) >= 75 ? COLORS.present : COLORS.absent
                   }
-                ]} 
+                ]}
               />
             </View>
           </Animated.View>
@@ -544,8 +557,8 @@ export default function AttendanceScreen() {
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl 
-            refreshing={refreshing} 
+          <RefreshControl
+            refreshing={refreshing}
             onRefresh={onRefresh}
             colors={[COLORS.primary]}
             tintColor={COLORS.primary}
@@ -553,7 +566,7 @@ export default function AttendanceScreen() {
         }
       >
         {/* Month Selector */}
-        <Animated.View 
+        <Animated.View
           style={[
             styles.monthSelector,
             { opacity: fadeAnim }
@@ -565,14 +578,14 @@ export default function AttendanceScreen() {
           >
             <Ionicons name="chevron-back" size={24} color={COLORS.primary} />
           </TouchableOpacity>
-          
+
           <View style={styles.monthDisplay}>
             <Ionicons name="calendar" size={20} color={COLORS.secondary} />
             <Text style={styles.monthText}>
               {formatMonthForDisplay(selectedMonth)}
             </Text>
           </View>
-          
+
           <TouchableOpacity
             style={styles.monthButton}
             onPress={() => handleMonthChange(1)}
@@ -739,7 +752,7 @@ export default function AttendanceScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#FDF5F7',
   },
 
   // Loading
@@ -747,40 +760,40 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    backgroundColor: '#FDF5F7',
   },
   loadingContent: {
     alignItems: 'center',
   },
   loadingIconContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 30,
-    backgroundColor: COLORS.cream,
+    width: 70,
+    height: 70,
+    borderRadius: 20,
+    backgroundColor: '#FFF9F0',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
-    borderWidth: 3,
+    marginBottom: 8,
+    borderWidth: 2,
     borderColor: 'rgba(212, 175, 55, 0.3)',
   },
   loadingText: {
-    fontSize: 18,
+    fontSize: 12,
     fontWeight: '700',
     color: COLORS.primary,
     marginBottom: 6,
   },
   loadingSubtext: {
-    fontSize: 14,
+    fontSize: 12,
     color: COLORS.gray,
   },
 
   // Header
   header: {
     backgroundColor: COLORS.primary,
-    paddingTop: 50,
-    paddingBottom: 20,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    paddingTop: 30,
+    paddingBottom: 10,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
     overflow: 'hidden',
   },
   headerDecorations: {
@@ -788,9 +801,9 @@ const styles = StyleSheet.create({
   },
   headerBlob: {
     position: 'absolute',
-    width: 140,
-    height: 140,
-    borderRadius: 70,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     backgroundColor: COLORS.secondary,
     opacity: 0.12,
     top: -40,
@@ -820,26 +833,26 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 50,
     right: -40,
-    width: 150,
-    height: 30,
+    width: 100,
+    height: 20,
     borderRadius: 15,
     backgroundColor: COLORS.secondary,
     opacity: 0.08,
     transform: [{ rotate: '-15deg' }],
   },
   headerContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 14,
   },
   headerTop: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    marginBottom: 8,
   },
   backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -847,9 +860,9 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   refreshButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -860,7 +873,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 15,
     fontWeight: '800',
     color: COLORS.white,
     letterSpacing: 0.5,
@@ -890,28 +903,28 @@ const styles = StyleSheet.create({
   // Stats
   statsRow: {
     flexDirection: 'row',
-    gap: 10,
-    marginBottom: 16,
+    gap: 6,
+    marginBottom: 10,
   },
   statCard: {
     flex: 1,
     backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderRadius: 16,
-    padding: 12,
+    borderRadius: 12,
+    padding: 10,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   statIcon: {
-    width: 36,
-    height: 36,
+    width: 28,
+    height: 28,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
   },
   statValue: {
-    fontSize: 20,
+    fontSize: 12,
     fontWeight: '800',
     color: COLORS.white,
   },
@@ -927,36 +940,36 @@ const styles = StyleSheet.create({
   // Percentage Card
   percentageCard: {
     backgroundColor: COLORS.white,
-    borderRadius: 18,
-    padding: 18,
+    borderRadius: 10,
+    padding: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.03,
     shadowRadius: 10,
-    elevation: 5,
+    elevation: 1,
   },
   percentageContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 14,
+    marginBottom: 8,
   },
   percentageValue: {
-    fontSize: 32,
+    fontSize: 24,
     fontWeight: '900',
     color: COLORS.primary,
   },
   percentageLabel: {
-    fontSize: 13,
+    fontSize: 12,
     color: COLORS.gray,
     fontWeight: '600',
     marginTop: 2,
   },
   percentageIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 16,
-    backgroundColor: COLORS.cream,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#FFF9F0',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
@@ -977,18 +990,18 @@ const styles = StyleSheet.create({
   errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.cream,
-    padding: 14,
+    backgroundColor: '#FFF9F0',
+    padding: 10,
     marginHorizontal: 20,
-    marginTop: 16,
-    borderRadius: 14,
-    gap: 10,
+    marginTop: 10,
+    borderRadius: 10,
+    gap: 6,
     borderWidth: 1,
     borderColor: 'rgba(245, 158, 11, 0.3)',
   },
   errorBannerText: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 12,
     color: '#B45309',
     fontWeight: '500',
   },
@@ -1002,72 +1015,72 @@ const styles = StyleSheet.create({
   monthSelector: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 14,
     paddingVertical: 20,
-    gap: 14,
+    gap: 8,
   },
   monthButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: COLORS.cardBg,
+    width: 28,
+    height: 28,
+    borderRadius: 10,
+    backgroundColor: '#FDF5F7',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.03,
     shadowRadius: 6,
-    elevation: 3,
+    elevation: 1,
   },
   monthDisplay: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.cardBg,
-    borderRadius: 16,
-    paddingVertical: 14,
-    gap: 10,
+    backgroundColor: '#FDF5F7',
+    borderRadius: 12,
+    paddingVertical: 10,
+    gap: 6,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.03,
     shadowRadius: 6,
-    elevation: 3,
+    elevation: 1,
   },
   monthText: {
-    fontSize: 17,
+    fontSize: 14,
     fontWeight: '700',
     color: COLORS.ink,
   },
 
   // Calendar
   calendarContainer: {
-    backgroundColor: COLORS.cardBg,
+    backgroundColor: '#FDF5F7',
     marginHorizontal: 20,
-    borderRadius: 22,
-    padding: 18,
+    borderRadius: 12,
+    padding: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.03,
     shadowRadius: 12,
-    elevation: 5,
+    elevation: 1,
   },
   calendarHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
-    gap: 10,
+    marginBottom: 10,
+    gap: 6,
   },
   calendarHeaderIcon: {
-    width: 36,
-    height: 36,
+    width: 28,
+    height: 28,
     borderRadius: 12,
     backgroundColor: 'rgba(212, 175, 55, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   calendarHeaderTitle: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '700',
     color: COLORS.ink,
   },
@@ -1076,7 +1089,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.lightGray,
+    borderBottomColor: '#F0F0F0',
   },
   weekdayCell: {
     flex: 1,
@@ -1116,7 +1129,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.secondary,
   },
   dayNumber: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     color: COLORS.gray,
   },
@@ -1136,108 +1149,108 @@ const styles = StyleSheet.create({
 
   // Legend
   legendContainer: {
-    backgroundColor: COLORS.cardBg,
+    backgroundColor: '#FDF5F7',
     marginHorizontal: 20,
-    marginTop: 20,
-    borderRadius: 18,
-    padding: 18,
+    marginTop: 10,
+    borderRadius: 10,
+    padding: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.03,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 1,
   },
   legendHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 14,
-    gap: 10,
+    marginBottom: 8,
+    gap: 6,
   },
   legendHeaderIcon: {
-    width: 32,
-    height: 32,
+    width: 26,
+    height: 26,
     borderRadius: 10,
     backgroundColor: 'rgba(212, 175, 55, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   legendTitle: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '700',
     color: COLORS.ink,
   },
   legendGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 8,
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
     width: '45%',
-    gap: 10,
+    gap: 6,
   },
   legendColor: {
-    width: 24,
-    height: 24,
+    width: 18,
+    height: 18,
     borderRadius: 8,
   },
   legendText: {
-    fontSize: 13,
+    fontSize: 12,
     color: COLORS.gray,
     fontWeight: '500',
   },
 
   // Summary Card
   summaryCard: {
-    backgroundColor: COLORS.cardBg,
+    backgroundColor: '#FDF5F7',
     marginHorizontal: 20,
-    marginTop: 20,
-    borderRadius: 18,
+    marginTop: 10,
+    borderRadius: 10,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.03,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 1,
   },
   summaryHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 18,
-    backgroundColor: COLORS.cream,
+    padding: 10,
+    backgroundColor: '#FFF9F0',
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(212, 175, 55, 0.2)',
-    gap: 12,
+    gap: 8,
   },
   summaryHeaderIcon: {
-    width: 40,
-    height: 40,
+    width: 26,
+    height: 26,
     borderRadius: 12,
     backgroundColor: 'rgba(212, 175, 55, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   summaryTitle: {
-    fontSize: 17,
+    fontSize: 13,
     fontWeight: '700',
     color: COLORS.ink,
   },
   summaryBody: {
-    padding: 18,
+    padding: 10,
   },
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 14,
+    paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.lightGray,
+    borderBottomColor: '#F0F0F0',
   },
   summaryRowLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
   },
   summaryDot: {
     width: 10,
@@ -1245,42 +1258,42 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   summaryLabel: {
-    fontSize: 14,
+    fontSize: 12,
     color: COLORS.gray,
     fontWeight: '500',
   },
   summaryValue: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: '800',
     color: COLORS.ink,
   },
 
   // Available Months
   availableMonthsCard: {
-    backgroundColor: COLORS.cardBg,
+    backgroundColor: '#FDF5F7',
     marginHorizontal: 20,
-    marginTop: 20,
-    borderRadius: 18,
+    marginTop: 10,
+    borderRadius: 10,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.03,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 1,
   },
   monthChipsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    padding: 18,
-    gap: 10,
+    padding: 10,
+    gap: 6,
   },
   monthChip: {
-    backgroundColor: COLORS.background,
-    paddingHorizontal: 16,
+    backgroundColor: '#FDF5F7',
+    paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 25,
     borderWidth: 1,
-    borderColor: COLORS.lightGray,
+    borderColor: '#F5E8EB',
   },
   monthChipActive: {
     backgroundColor: COLORS.secondary,

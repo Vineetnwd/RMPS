@@ -37,7 +37,7 @@ const COLORS = {
   error: '#DC2626',
   success: '#10B981',
   background: '#7A0C2E',
-  cream: '#FFF8E7',
+  cream: '#FFF5EC',
   overlay: 'rgba(122, 12, 46, 0.95)',
 };
 
@@ -206,7 +206,12 @@ export default function AdminLogin() {
     try {
       const isLoggedIn = await AsyncStorage.getItem('isLoggedIn');
       if (isLoggedIn === 'true') {
-        router.replace('/Dashboard');
+        const userType = await AsyncStorage.getItem('user_type');
+        if (userType === 'TEACHER') {
+          router.replace('/TeacherDashboard');
+        } else {
+          router.replace('/Dashboard');
+        }
       }
     } catch (error) {
       console.error('Error checking login status:', error);
@@ -221,6 +226,13 @@ export default function AdminLogin() {
       await AsyncStorage.setItem('full_name', userData.full_name);
       await AsyncStorage.setItem('user_type', userData.user_type);
       await AsyncStorage.setItem('isLoggedIn', 'true');
+
+      // Store emp_id explicitly as requested
+      const empId = userData.emp_id || userData.id;
+      if (empId) {
+        await AsyncStorage.setItem('emp_id', empId.toString());
+      }
+
       // Store branch_id and allowed_branch for branch switching feature
       if (userData.branch_id) {
         await AsyncStorage.setItem('branch_id', userData.branch_id.toString());
@@ -261,7 +273,12 @@ export default function AdminLogin() {
         const stored = await storeUserData(userData);
 
         if (stored) {
-          router.replace('/Dashboard');
+          // Redirect based on user type
+          if (userData.user_type === 'TEACHER') {
+            router.replace('/TeacherDashboard');
+          } else {
+            router.replace('/Dashboard');
+          }
         } else {
           setError('Failed to store login information. Please try again.');
         }
@@ -646,7 +663,7 @@ export default function AdminLogin() {
 
                 <View style={styles.versionContainer}>
                   <View style={styles.versionDot} />
-                  <Text style={styles.versionText}>Admin Portal v1.0.0</Text>
+                  <Text style={styles.versionText}>Admin Portal v13.0.3</Text>
                 </View>
               </Animated.View>
             </View>

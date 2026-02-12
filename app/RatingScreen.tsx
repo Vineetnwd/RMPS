@@ -29,8 +29,8 @@ const COLORS = {
   error: '#DC2626',
   success: '#10B981',
   warning: '#F59E0B',
-  background: '#F8FAFC',
-  cream: '#FFF8E7',
+  background: '#FDF5F7',
+  cream: '#FFF5EC',
   cardBg: '#FFFFFF',
 };
 
@@ -90,6 +90,9 @@ const RatingScreen = () => {
   const [rating, setRating] = useState(0);
   const [review, setReview] = useState('');
   const [loading, setLoading] = useState(false);
+  const [fetchingReview, setFetchingReview] = useState(true);
+  const [existingReview, setExistingReview] = useState<any>(null);
+  const [branchId, setBranchId] = useState<string | null>(null);
 
   // Animation refs
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -137,7 +140,44 @@ const RatingScreen = () => {
         useNativeDriver: true,
       })
     ).start();
+
+    // Fetch existing review
+    fetchExistingReview();
   }, []);
+
+  const fetchExistingReview = async () => {
+    try {
+      const studentId = await AsyncStorage.getItem('student_id');
+      const storedBranchId = await AsyncStorage.getItem('branch_id');
+      setBranchId(storedBranchId);
+
+      if (!studentId) {
+        setFetchingReview(false);
+        return;
+      }
+
+      const response = await fetch(
+        'https://rmpublicschool.org/binex/api.php?task=get_review',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ student_id: studentId }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (data && data.id) {
+        setExistingReview(data);
+        setRating(parseInt(data.rating) || 0);
+        setReview(data.review || '');
+      }
+    } catch (error) {
+      console.error('Error fetching review:', error);
+    } finally {
+      setFetchingReview(false);
+    }
+  };
 
   const floatTranslate = floatAnim.interpolate({
     inputRange: [0, 1],
@@ -186,6 +226,7 @@ const RatingScreen = () => {
       review: review,
       status: 'ACTIVE',
       created_by: studentId,
+      branch_id: branchId ? parseInt(branchId) : null,
     };
 
     try {
@@ -203,12 +244,10 @@ const RatingScreen = () => {
       const data = await response.json();
 
       if (data.status === 'success') {
-        Alert.alert('Success', 'Review submitted successfully!', [
+        Alert.alert('Success', existingReview ? 'Review updated successfully!' : 'Review submitted successfully!', [
           {
             text: 'OK',
             onPress: () => {
-              setRating(0);
-              setReview('');
               router.back();
             },
           },
@@ -364,6 +403,15 @@ const RatingScreen = () => {
                 </Text>
               </View>
             )}
+
+            {existingReview && (
+              <View style={styles.existingReviewBadge}>
+                <Ionicons name="checkmark-circle" size={14} color={COLORS.success} />
+                <Text style={styles.existingReviewText}>
+                  Previously submitted on {new Date(existingReview.created_at).toLocaleDateString()}
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* Review Section */}
@@ -408,8 +456,10 @@ const RatingScreen = () => {
                 <ActivityIndicator color={COLORS.white} />
               ) : (
                 <>
-                  <Ionicons name="send" size={20} color={COLORS.white} />
-                  <Text style={styles.submitButtonText}>Submit Review</Text>
+                  <Ionicons name={existingReview ? 'create' : 'send'} size={20} color={COLORS.white} />
+                  <Text style={styles.submitButtonText}>
+                    {existingReview ? 'Update Review' : 'Submit Review'}
+                  </Text>
                 </>
               )}
             </View>
@@ -435,16 +485,16 @@ const RatingScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#FDF5F7',
   },
 
   // Header
   header: {
     backgroundColor: COLORS.primary,
-    paddingTop: 50,
-    paddingBottom: 20,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    paddingTop: 30,
+    paddingBottom: 10,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
     overflow: 'hidden',
   },
   headerDecorations: {
@@ -452,9 +502,9 @@ const styles = StyleSheet.create({
   },
   headerBlob: {
     position: 'absolute',
-    width: 140,
-    height: 140,
-    borderRadius: 70,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     backgroundColor: COLORS.secondary,
     opacity: 0.12,
     top: -40,
@@ -491,18 +541,18 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   headerContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 14,
   },
   headerTop: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    marginBottom: 8,
   },
   backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -514,7 +564,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 15,
     fontWeight: '800',
     color: COLORS.white,
     letterSpacing: 0.3,
@@ -530,20 +580,20 @@ const styles = StyleSheet.create({
   ratingPreviewCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.cardBg,
-    padding: 16,
-    borderRadius: 16,
-    gap: 14,
+    backgroundColor: '#FDF5F7',
+    padding: 10,
+    borderRadius: 12,
+    gap: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.03,
     shadowRadius: 8,
-    elevation: 4,
+    elevation: 1,
   },
   ratingPreviewIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
+    width: 26,
+    height: 26,
+    borderRadius: 10,
     backgroundColor: 'rgba(212, 175, 55, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -552,7 +602,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   ratingPreviewTitle: {
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: '700',
     color: COLORS.ink,
     marginBottom: 2,
@@ -567,39 +617,39 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: 20,
+    padding: 10,
   },
 
   // Card
   card: {
-    backgroundColor: COLORS.cardBg,
-    borderRadius: 18,
-    padding: 20,
-    marginBottom: 16,
+    backgroundColor: '#FDF5F7',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: 'rgba(0, 0, 0, 0.04)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.03,
     shadowRadius: 6,
-    elevation: 2,
+    elevation: 1,
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
-    gap: 10,
+    marginBottom: 8,
+    gap: 6,
   },
   cardHeaderIcon: {
-    width: 36,
-    height: 36,
+    width: 28,
+    height: 28,
     borderRadius: 10,
     backgroundColor: 'rgba(212, 175, 55, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   cardTitle: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '700',
     color: COLORS.ink,
   },
@@ -615,14 +665,14 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   starContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 14,
-    backgroundColor: COLORS.cream,
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: '#FFF9F0',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: COLORS.lightGray,
+    borderColor: '#F5E8EB',
   },
   starContainerActive: {
     backgroundColor: 'rgba(212, 175, 55, 0.15)',
@@ -634,11 +684,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.cream,
+    backgroundColor: '#FFF9F0',
     paddingVertical: 10,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     borderRadius: 12,
-    marginTop: 16,
+    marginTop: 10,
     gap: 8,
   },
   ratingBadgeDot: {
@@ -647,22 +697,42 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   ratingBadgeText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '700',
     color: COLORS.ink,
   },
 
+  // Existing Review Badge
+  existingReviewBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(16, 185, 129, 0.08)',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    marginTop: 8,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.15)',
+  },
+  existingReviewText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: COLORS.success,
+  },
+
   // Text Input
   textInputContainer: {
-    backgroundColor: COLORS.cream,
-    borderRadius: 14,
+    backgroundColor: '#FFF9F0',
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: 'rgba(212, 175, 55, 0.2)',
     overflow: 'hidden',
   },
   textInput: {
-    padding: 16,
-    fontSize: 15,
+    padding: 10,
+    fontSize: 12,
     color: COLORS.ink,
     minHeight: 140,
     textAlignVertical: 'top',
@@ -680,8 +750,8 @@ const styles = StyleSheet.create({
 
   // Submit Button
   submitButton: {
-    marginBottom: 20,
-    borderRadius: 16,
+    marginBottom: 8,
+    borderRadius: 12,
     overflow: 'hidden',
     shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 4 },
@@ -698,10 +768,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: COLORS.primary,
     paddingVertical: 18,
-    gap: 10,
+    gap: 6,
     borderWidth: 2,
     borderColor: COLORS.secondary,
-    borderRadius: 16,
+    borderRadius: 12,
   },
   submitButtonInnerDisabled: {
     backgroundColor: COLORS.gray,
@@ -709,7 +779,7 @@ const styles = StyleSheet.create({
   },
   submitButtonText: {
     color: COLORS.white,
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: '700',
   },
 
@@ -717,16 +787,16 @@ const styles = StyleSheet.create({
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.cardBg,
-    padding: 16,
-    borderRadius: 14,
-    gap: 12,
+    backgroundColor: '#FDF5F7',
+    padding: 10,
+    borderRadius: 10,
+    gap: 8,
     borderWidth: 1,
     borderColor: 'rgba(0, 0, 0, 0.04)',
   },
   footerIconContainer: {
-    width: 36,
-    height: 36,
+    width: 28,
+    height: 28,
     borderRadius: 10,
     backgroundColor: 'rgba(212, 175, 55, 0.15)',
     justifyContent: 'center',
@@ -735,7 +805,7 @@ const styles = StyleSheet.create({
   footerText: {
     flex: 1,
     color: COLORS.gray,
-    fontSize: 13,
+    fontSize: 12,
     lineHeight: 20,
   },
 

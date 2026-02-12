@@ -35,21 +35,22 @@ const COLORS = {
   lightGray: '#E2E8F0',
   error: '#DC2626',
   success: '#10B981',
-  background: '#F8FAFC',
-  cream: '#FFF8E7',
+  background: '#FDF5F7',
+  cream: '#FFF5EC',
   cardBg: '#FFFFFF',
 };
 
 // Base URL for attachments
 const BASE_URL = 'https://dpsmushkipur.com/bine';
 const ATTACHMENT_PATHS = {
-  notice: '/homework/',    
+  notice: '/homework/',
 };
 
 const FEATURES = [
   {
     id: 'attendance',
     title: 'Attendance',
+    subtitle: 'View your records',
     icon: 'calendar',
     route: '/AttendanceScreen',
     color: COLORS.primary,
@@ -58,22 +59,43 @@ const FEATURES = [
   {
     id: 'homework',
     title: 'Homework',
+    subtitle: 'Daily assignments',
     icon: 'book',
     route: '/HomeWorkScreen',
     color: COLORS.secondary,
     bgColor: 'rgba(212, 175, 55, 0.15)',
   },
+  // {
+  //   id: 'exam-report',
+  //   title: 'Exam Report',
+  //   subtitle: 'Results & grades',
+  //   icon: 'trophy',
+  //   route: '/ExamReportScreen',
+  //   color: COLORS.primary,
+  //   bgColor: 'rgba(122, 12, 46, 0.1)',
+  // },
   {
-    id: 'exam-report',
-    title: 'Exam Report',
-    icon: 'trophy',
-    route: '/ExamReportScreen',
+    id: 'admit-card',
+    title: 'Admit Card',
+    subtitle: 'Exam schedule',
+    icon: 'id-card',
+    route: '/AdmitCardScreen',
     color: COLORS.primary,
     bgColor: 'rgba(122, 12, 46, 0.1)',
   },
   {
+    id: 'live-classes',
+    title: 'Live Classes',
+    subtitle: 'Join online sessions',
+    icon: 'videocam',
+    route: '/LiveClassesScreen',
+    color: COLORS.secondary,
+    bgColor: 'rgba(212, 175, 55, 0.15)',
+  },
+  {
     id: 'noticeboard',
     title: 'Notice Board',
+    subtitle: 'School updates',
     icon: 'notifications',
     route: '/noticeboard',
     color: COLORS.secondary,
@@ -82,6 +104,7 @@ const FEATURES = [
   {
     id: 'holiday',
     title: 'Holidays',
+    subtitle: 'Upcoming holidays',
     icon: 'sunny',
     route: '/HolidayScreen',
     color: COLORS.primary,
@@ -90,6 +113,7 @@ const FEATURES = [
   {
     id: 'leave',
     title: 'Leave Applications',
+    subtitle: 'Apply & track leaves',
     icon: 'document-text',
     route: '/StudentLeaves',
     color: COLORS.secondary,
@@ -98,6 +122,7 @@ const FEATURES = [
   {
     id: 'payment',
     title: 'Online Payment',
+    subtitle: 'Fee details & pay',
     icon: 'card',
     route: '/StudentFeeScreen',
     color: COLORS.primary,
@@ -106,22 +131,25 @@ const FEATURES = [
   {
     id: 'payment-history',
     title: 'Payment History',
+    subtitle: 'Past transactions',
     icon: 'receipt',
     route: '/PaymentHistoryScreen',
     color: COLORS.secondary,
     bgColor: 'rgba(212, 175, 55, 0.15)',
   },
-  {
-    id: 'bus',
-    title: 'Live Bus Location',
-    icon: 'bus',
-    route: '/LiveBusLocation',
-    color: COLORS.primary,
-    bgColor: 'rgba(122, 12, 46, 0.1)',
-  },
+  // {
+  //   id: 'bus',
+  //   title: 'Live Bus Location',
+  //   subtitle: 'Track your bus',
+  //   icon: 'bus',
+  //   route: '/LiveBusLocation',
+  //   color: COLORS.primary,
+  //   bgColor: 'rgba(122, 12, 46, 0.1)',
+  // },
   {
     id: 'complain',
     title: 'Complaints',
+    subtitle: 'Raise a concern',
     icon: 'alert-circle',
     route: '/StudentComplaints',
     color: COLORS.secondary,
@@ -130,6 +158,7 @@ const FEATURES = [
   {
     id: 'help',
     title: 'Help & Support',
+    subtitle: 'Get assistance',
     icon: 'help-circle',
     route: '/HelpAndSupport',
     color: COLORS.primary,
@@ -138,6 +167,7 @@ const FEATURES = [
   {
     id: 'rate',
     title: 'Rate & Review',
+    subtitle: 'Share feedback',
     icon: 'star',
     route: '/RatingScreen',
     color: COLORS.secondary,
@@ -185,9 +215,9 @@ const DottedPattern = ({ style, rows = 3, cols = 5, dotColor = COLORS.secondary 
             key={colIndex}
             style={[
               styles.dot,
-              { 
+              {
                 backgroundColor: dotColor,
-                opacity: 0.3 + (rowIndex * cols + colIndex) * 0.02 
+                opacity: 0.3 + (rowIndex * cols + colIndex) * 0.02
               },
             ]}
           />
@@ -196,6 +226,17 @@ const DottedPattern = ({ style, rows = 3, cols = 5, dotColor = COLORS.secondary 
     ))}
   </View>
 );
+
+const BRANCH_PHOTO_FOLDER: Record<string, string> = {
+  '1': 'Bishambharpur',
+  '2': 'Barauli',
+  '4': 'Barharia',
+};
+
+const getStudentPhotoUrl = (branchId: string, studentAdmission: string) => {
+  const folder = BRANCH_PHOTO_FOLDER[branchId];
+  return `https://rmpublicschool.org/binex/student_photo/${folder}/Photo/${studentAdmission}.jpg`;
+};
 
 export default function StudentHomeScreen() {
   const router = useRouter();
@@ -209,7 +250,7 @@ export default function StudentHomeScreen() {
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [hasMultipleStudents, setHasMultipleStudents] = useState(false);
   const [allStudents, setAllStudents] = useState([]);
-  
+
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   const floatAnim = useRef(new Animated.Value(0)).current;
@@ -261,7 +302,7 @@ export default function StudentHomeScreen() {
   const initializeScreen = async () => {
     console.log('Initializing screen...');
     console.log('Params received:', params);
-    
+
     if (params.studentData) {
       try {
         const studentData = JSON.parse(params.studentData);
@@ -275,12 +316,12 @@ export default function StudentHomeScreen() {
 
     if (params.notices) {
       try {
-        const noticesData = typeof params.notices === 'string' 
-          ? JSON.parse(params.notices) 
+        const noticesData = typeof params.notices === 'string'
+          ? JSON.parse(params.notices)
           : params.notices;
-        
+
         console.log('Notices loaded from params:', noticesData.length);
-        
+
         if (noticesData && Array.isArray(noticesData)) {
           setNotices(noticesData);
           await AsyncStorage.setItem('notices', JSON.stringify(noticesData));
@@ -323,7 +364,7 @@ export default function StudentHomeScreen() {
       setError('');
 
       const studentId = await AsyncStorage.getItem('student_id');
-      
+
       if (!studentId) {
         router.replace('/');
         return;
@@ -347,7 +388,7 @@ export default function StudentHomeScreen() {
       if (data && data.length > 0) {
         const studentData = data[0];
         setStudent(studentData);
-        
+
         await AsyncStorage.setItem('student_data', JSON.stringify(studentData));
 
         Animated.parallel([
@@ -368,7 +409,7 @@ export default function StudentHomeScreen() {
     } catch (err) {
       console.error('Error fetching student profile:', err);
       setError('Network error. Please check your connection.');
-      
+
       const cachedData = await AsyncStorage.getItem('student_data');
       if (cachedData) {
         setStudent(JSON.parse(cachedData));
@@ -429,7 +470,7 @@ export default function StudentHomeScreen() {
 
     try {
       const cleanAttachment = attachment.trim();
-      
+
       const fileExtension = cleanAttachment.split('.').pop().toLowerCase();
       const safeTitle = title.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_').substring(0, 50);
       const fileName = `${safeTitle}_${Date.now()}.${fileExtension}`;
@@ -450,7 +491,7 @@ export default function StudentHomeScreen() {
           console.log('Trying URL:', url);
 
           const headResponse = await fetch(url, { method: 'HEAD' }).catch(() => null);
-          
+
           if (!headResponse || !headResponse.ok) {
             console.log(`URL not accessible: ${url}`);
             continue;
@@ -485,9 +526,9 @@ export default function StudentHomeScreen() {
 
             if (fileInfo.exists && fileInfo.size > 0) {
               downloadSuccessful = true;
-              
+
               const sharingAvailable = await Sharing.isAvailableAsync();
-              
+
               if (sharingAvailable) {
                 await Sharing.shareAsync(result.uri, {
                   mimeType: getMimeType(fileExtension),
@@ -526,7 +567,7 @@ export default function StudentHomeScreen() {
 
     } catch (error) {
       console.error('Download error:', error);
-      
+
       Alert.alert(
         'Download Failed',
         'Unable to download the attachment. Would you like to try opening it in your browser?',
@@ -585,7 +626,7 @@ export default function StudentHomeScreen() {
 
   const handleOpenInBrowser = (attachment) => {
     if (!attachment) return;
-    
+
     const url = `${BASE_URL}/notices/${attachment}`;
     Linking.openURL(url).catch((err) => {
       console.error('Failed to open URL:', err);
@@ -665,7 +706,7 @@ export default function StudentHomeScreen() {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
-      
+
       {/* Header */}
       <View style={styles.header}>
         {/* Background Decorations */}
@@ -684,22 +725,22 @@ export default function StudentHomeScreen() {
           >
             <CircleRing size={80} borderWidth={2} color="rgba(212, 175, 55, 0.3)" />
           </Animated.View>
-          <DiamondShape 
-            style={styles.headerDiamond1} 
-            color="rgba(212, 175, 55, 0.4)" 
-            size={14} 
+          <DiamondShape
+            style={styles.headerDiamond1}
+            color="rgba(212, 175, 55, 0.4)"
+            size={14}
           />
-          <DiamondShape 
-            style={styles.headerDiamond2} 
-            color="rgba(255, 255, 255, 0.2)" 
-            size={10} 
+          <DiamondShape
+            style={styles.headerDiamond2}
+            color="rgba(255, 255, 255, 0.2)"
+            size={10}
           />
           <View style={styles.headerStripe} />
-          <DottedPattern 
-            style={styles.headerDots} 
-            rows={3} 
-            cols={4} 
-            dotColor="rgba(255, 255, 255, 0.3)" 
+          <DottedPattern
+            style={styles.headerDots}
+            rows={3}
+            cols={4}
+            dotColor="rgba(255, 255, 255, 0.3)"
           />
         </View>
 
@@ -718,7 +759,7 @@ export default function StudentHomeScreen() {
                 </Text>
               </View>
             </View>
-            
+
             <View style={styles.headerRight}>
               <TouchableOpacity
                 style={styles.profileButton}
@@ -731,7 +772,7 @@ export default function StudentHomeScreen() {
                   {student.student_photo !== 'no_image.jpg' ? (
                     <Image
                       source={{
-                        uri: `https://rmpublicschool.org/binex/upload/${student.student_photo}`,
+                        uri: getStudentPhotoUrl(student.branch_id, student.student_admission),
                       }}
                       style={styles.profileImage}
                     />
@@ -799,8 +840,8 @@ export default function StudentHomeScreen() {
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl 
-            refreshing={refreshing} 
+          <RefreshControl
+            refreshing={refreshing}
             onRefresh={onRefresh}
             colors={[COLORS.primary]}
             tintColor={COLORS.primary}
@@ -865,7 +906,7 @@ export default function StudentHomeScreen() {
                 index={index}
                 onPress={() => router.push({
                   pathname: feature.route,
-                  params: { 
+                  params: {
                     student_id: student.id,
                     studentData: JSON.stringify(student)
                   }
@@ -887,7 +928,7 @@ export default function StudentHomeScreen() {
                 Recent Notices {notices.length > 0 && `(${notices.length})`}
               </Text>
             </View>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.viewAllButton}
               onPress={handleViewAllNotices}
             >
@@ -895,7 +936,7 @@ export default function StudentHomeScreen() {
               <Ionicons name="chevron-forward" size={16} color={COLORS.secondary} />
             </TouchableOpacity>
           </View>
-          
+
           {notices && notices.length > 0 ? (
             notices.slice(0, 3).map((notice) => (
               <NoticeCard
@@ -966,32 +1007,37 @@ function FeatureCard({ feature, index, onPress, fadeAnim }) {
         onPress={onPress}
         activeOpacity={0.8}
       >
-        <View style={[styles.featureIconContainer, { backgroundColor: feature.bgColor }]}>
-          <Ionicons name={feature.icon} size={26} color={feature.color} />
+        <View style={styles.featureCardTop}>
+          <View style={[styles.featureIconContainer, { backgroundColor: feature.bgColor }]}>
+            <Ionicons name={feature.icon} size={18} color={feature.color} />
+          </View>
+          <View style={[styles.featureArrow, { backgroundColor: feature.bgColor }]}>
+            <Ionicons name="chevron-forward" size={12} color={feature.color} />
+          </View>
         </View>
         <Text style={styles.featureTitle}>{feature.title}</Text>
-        <View style={[styles.featureArrow, { backgroundColor: feature.bgColor }]}>
-          <Ionicons name="chevron-forward" size={14} color={feature.color} />
-        </View>
+        {feature.subtitle ? (
+          <Text style={styles.featureSubtitle}>{feature.subtitle}</Text>
+        ) : null}
       </TouchableOpacity>
     </Animated.View>
   );
 }
 
-function NoticeCard({ 
-  notice, 
-  onDownload, 
+function NoticeCard({
+  notice,
+  onDownload,
   onOpenInBrowser,
-  isDownloading, 
+  isDownloading,
   downloadProgress,
-  formatDate, 
-  stripHtmlTags 
+  formatDate,
+  stripHtmlTags
 }) {
   const [expanded, setExpanded] = useState(false);
   const hasAttachment = notice.notice_attachment && notice.notice_attachment.trim() !== '';
   const description = stripHtmlTags(notice.notice_details);
-  const shortDescription = description.length > 100 
-    ? description.substring(0, 100) + '...' 
+  const shortDescription = description.length > 100
+    ? description.substring(0, 100) + '...'
     : description;
 
   const getFileIcon = (filename) => {
@@ -1038,17 +1084,17 @@ function NoticeCard({
       </Text>
 
       {description.length > 100 && (
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.readMoreButton}
           onPress={() => setExpanded(!expanded)}
         >
           <Text style={styles.readMoreText}>
             {expanded ? 'Read Less' : 'Read More'}
           </Text>
-          <Ionicons 
-            name={expanded ? 'chevron-up' : 'chevron-down'} 
-            size={14} 
-            color={COLORS.secondary} 
+          <Ionicons
+            name={expanded ? 'chevron-up' : 'chevron-down'}
+            size={14}
+            color={COLORS.secondary}
           />
         </TouchableOpacity>
       )}
@@ -1057,10 +1103,10 @@ function NoticeCard({
         <View style={styles.attachmentContainer}>
           <View style={styles.attachmentInfo}>
             <View style={styles.attachmentIconContainer}>
-              <Ionicons 
-                name={getFileIcon(notice.notice_attachment)} 
-                size={18} 
-                color={COLORS.secondary} 
+              <Ionicons
+                name={getFileIcon(notice.notice_attachment)}
+                size={18}
+                color={COLORS.secondary}
               />
             </View>
             <Text style={styles.attachmentName} numberOfLines={1}>
@@ -1081,11 +1127,11 @@ function NoticeCard({
 
           {isDownloading && downloadProgress > 0 && (
             <View style={styles.progressBarContainer}>
-              <View 
+              <View
                 style={[
-                  styles.progressBar, 
+                  styles.progressBar,
                   { width: `${downloadProgress}%` }
-                ]} 
+                ]}
               />
             </View>
           )}
@@ -1098,57 +1144,57 @@ function NoticeCard({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#FDF5F7',
   },
-  
+
   // Loading & Error States
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.primary,
+    backgroundColor: '#FDF5F7',
   },
   loadingContent: {
     alignItems: 'center',
   },
   loadingIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: '#FFF9F0',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 12,
   },
   loadingText: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '700',
-    color: COLORS.white,
-    marginTop: 10,
+    color: COLORS.primary,
+    marginTop: 8,
   },
   loadingSubtext: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.7)',
-    marginTop: 6,
+    fontSize: 13,
+    color: COLORS.gray,
+    marginTop: 4,
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
-    padding: 30,
+    backgroundColor: '#FDF5F7',
+    padding: 24,
   },
   errorIconContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: 'rgba(122, 12, 46, 0.1)',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(122, 12, 46, 0.08)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 12,
   },
   errorTitle: {
-    fontSize: 24,
+    fontSize: 17,
     fontWeight: '800',
     color: COLORS.primary,
     marginBottom: 10,
@@ -1172,7 +1218,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 5,
+    elevation: 3,
   },
   retryButtonText: {
     color: COLORS.primary,
@@ -1201,11 +1247,11 @@ const styles = StyleSheet.create({
   // Header
   header: {
     backgroundColor: COLORS.primary,
-    paddingTop: 50,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
+    paddingTop: 28,
+    paddingBottom: 8,
+    paddingHorizontal: 12,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
     overflow: 'hidden',
   },
   headerDecorations: {
@@ -1213,44 +1259,44 @@ const styles = StyleSheet.create({
   },
   headerBlob1: {
     position: 'absolute',
-    width: 150,
-    height: 150,
-    borderRadius: 75,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     backgroundColor: COLORS.secondary,
-    opacity: 0.1,
-    top: -50,
-    right: -50,
+    opacity: 0.08,
+    top: -30,
+    right: -30,
   },
   headerBlob2: {
     position: 'absolute',
-    top: 20,
-    right: 30,
+    top: 10,
+    right: 20,
   },
   headerDiamond1: {
     position: 'absolute',
-    top: 80,
-    left: 30,
+    top: 40,
+    left: 20,
   },
   headerDiamond2: {
     position: 'absolute',
-    bottom: 60,
-    right: 80,
+    bottom: 30,
+    right: 50,
   },
   headerStripe: {
     position: 'absolute',
-    top: 100,
-    right: -30,
-    width: 150,
-    height: 30,
-    borderRadius: 15,
+    top: 50,
+    right: -20,
+    width: 80,
+    height: 16,
+    borderRadius: 8,
     backgroundColor: COLORS.secondary,
-    opacity: 0.08,
+    opacity: 0.06,
     transform: [{ rotate: '-15deg' }],
   },
   headerDots: {
     position: 'absolute',
-    bottom: 80,
-    left: 20,
+    bottom: 40,
+    left: 12,
   },
   headerContent: {
     zIndex: 1,
@@ -1259,7 +1305,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 15,
+    marginBottom: 6,
+    paddingTop: 25,
   },
   headerLeft: {
     flex: 1,
@@ -1267,41 +1314,41 @@ const styles = StyleSheet.create({
   welcomePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 3,
     backgroundColor: 'rgba(212, 175, 55, 0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
     alignSelf: 'flex-start',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   welcomePillText: {
-    fontSize: 11,
+    fontSize: 9,
     color: COLORS.white,
     fontWeight: '700',
     letterSpacing: 0.5,
   },
   studentName: {
-    fontSize: 26,
+    fontSize: 16,
     fontWeight: '900',
     color: COLORS.white,
-    marginBottom: 8,
+    marginBottom: 4,
     letterSpacing: 0.3,
   },
   classInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 4,
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 25,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
     alignSelf: 'flex-start',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   classText: {
-    fontSize: 13,
+    fontSize: 10,
     color: COLORS.white,
     fontWeight: '600',
   },
@@ -1315,14 +1362,14 @@ const styles = StyleSheet.create({
     width: 70,
     height: 70,
     borderRadius: 35,
-    borderWidth: 3,
+    borderWidth: 5,
     borderColor: COLORS.secondary,
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
   profileImage: {
     width: '100%',
@@ -1338,9 +1385,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     right: 0,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     backgroundColor: COLORS.secondary,
     justifyContent: 'center',
     alignItems: 'center',
@@ -1350,75 +1397,75 @@ const styles = StyleSheet.create({
   actionButtonsRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    gap: 10,
-    marginBottom: 15,
+    gap: 6,
+    marginBottom: 6,
   },
   switchButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.white,
-    borderRadius: 25,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    gap: 6,
+    borderRadius: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    gap: 3,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
+    elevation: 1,
   },
   switchButtonText: {
     color: COLORS.primary,
-    fontSize: 13,
+    fontSize: 10,
     fontWeight: '700',
   },
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 25,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    gap: 6,
+    borderRadius: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    gap: 3,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   logoutButtonText: {
     color: COLORS.white,
-    fontSize: 13,
+    fontSize: 10,
     fontWeight: '700',
   },
   statsContainer: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 6,
   },
   statCard: {
     flex: 1,
     backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderRadius: 16,
-    padding: 14,
+    borderRadius: 10,
+    padding: 6,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   statIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 24,
+    height: 24,
+    borderRadius: 8,
     backgroundColor: 'rgba(212, 175, 55, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 3,
   },
   statValue: {
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: '800',
     color: COLORS.white,
   },
   statLabel: {
-    fontSize: 10,
+    fontSize: 8,
     color: 'rgba(255, 255, 255, 0.8)',
-    marginTop: 4,
+    marginTop: 1,
     fontWeight: '600',
     letterSpacing: 0.3,
   },
@@ -1429,13 +1476,13 @@ const styles = StyleSheet.create({
   },
   dottedRow: {
     flexDirection: 'row',
-    marginBottom: 6,
+    marginBottom: 5,
   },
   dot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    marginHorizontal: 4,
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    marginHorizontal: 3,
   },
 
   // Scroll View
@@ -1445,22 +1492,22 @@ const styles = StyleSheet.create({
 
   // Info Card
   infoCard: {
-    backgroundColor: COLORS.cardBg,
+    backgroundColor: '#FDF5F7',
     marginHorizontal: 20,
-    marginTop: 20,
-    borderRadius: 20,
+    marginTop: 14,
+    borderRadius: 16,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.06,
     shadowRadius: 12,
-    elevation: 5,
+    elevation: 3,
   },
   infoCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: COLORS.cream,
+    padding: 12,
+    backgroundColor: '#FFF9F0',
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(212, 175, 55, 0.2)',
     gap: 10,
@@ -1468,7 +1515,7 @@ const styles = StyleSheet.create({
   infoCardIcon: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: 14,
     backgroundColor: 'rgba(212, 175, 55, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1479,7 +1526,7 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
   },
   infoCardBody: {
-    padding: 16,
+    padding: 12,
   },
   infoRow: {
     flexDirection: 'row',
@@ -1505,14 +1552,14 @@ const styles = StyleSheet.create({
 
   // Features
   featuresContainer: {
-    padding: 20,
+    padding: 14,
     paddingBottom: 10,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 18,
+    marginBottom: 12,
   },
   sectionTitleRow: {
     flexDirection: 'row',
@@ -1520,15 +1567,15 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   sectionIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: 'rgba(212, 175, 55, 0.15)',
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    backgroundColor: 'rgba(212, 175, 55, 0.12)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: '800',
     color: COLORS.primary,
     letterSpacing: 0.3,
@@ -1536,14 +1583,14 @@ const styles = StyleSheet.create({
   viewAllButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(212, 175, 55, 0.15)',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
+    gap: 3,
+    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
   },
   viewAllText: {
-    fontSize: 13,
+    fontSize: 11,
     color: COLORS.secondary,
     fontWeight: '700',
   },
@@ -1553,62 +1600,74 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   featureCardWrapper: {
-    width: '48%',
-    marginBottom: 14,
+    width: '31.5%',
+    marginBottom: 8,
   },
   featureCard: {
-    backgroundColor: COLORS.cardBg,
-    borderRadius: 20,
-    padding: 18,
+    backgroundColor: '#FDF5F7',
+    borderRadius: 10,
+    padding: 8,
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.02,
+    shadowRadius: 4,
+    elevation: 1,
     borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.04)',
+    borderColor: '#F5E8EB',
+  },
+  featureCardTop: {
+    marginBottom: 4,
   },
   featureIconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 18,
+    width: 28,
+    height: 28,
+    borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
+  },
+  featureTextContainer: {
+    flex: 1,
   },
   featureTitle: {
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: '700',
     color: COLORS.ink,
     textAlign: 'center',
-    marginBottom: 8,
+  },
+  featureSubtitle: {
+    fontSize: 10,
+    fontWeight: '500',
+    color: COLORS.gray,
+    textAlign: 'center',
+    marginTop: 1,
   },
   featureArrow: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 0,
+    height: 0,
+    borderRadius: 0,
+    display: 'none',
     justifyContent: 'center',
     alignItems: 'center',
   },
 
   // Section
   section: {
-    paddingHorizontal: 20,
-    marginBottom: 10,
+    paddingHorizontal: 16,
+    marginBottom: 8,
   },
 
   // Notice Card
   noticeCard: {
-    backgroundColor: COLORS.cardBg,
-    borderRadius: 18,
-    padding: 18,
+    backgroundColor: '#FDF5F7',
+    borderRadius: 14,
+    padding: 14,
     marginBottom: 14,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.05,
     shadowRadius: 10,
-    elevation: 4,
+    elevation: 2,
     borderWidth: 1,
     borderColor: 'rgba(0, 0, 0, 0.04)',
   },
@@ -1618,25 +1677,25 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   noticeIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    backgroundColor: COLORS.cream,
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    backgroundColor: '#FFF9F0',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 14,
+    marginRight: 10,
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
+    borderColor: 'rgba(212, 175, 55, 0.2)',
   },
   noticeContent: {
     flex: 1,
   },
   noticeTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
     color: COLORS.ink,
-    marginBottom: 6,
-    lineHeight: 22,
+    marginBottom: 4,
+    lineHeight: 20,
   },
   noticeDateContainer: {
     flexDirection: 'row',
@@ -1668,7 +1727,7 @@ const styles = StyleSheet.create({
   attachmentContainer: {
     marginTop: 14,
     padding: 14,
-    backgroundColor: COLORS.cream,
+    backgroundColor: '#FFF9F0',
     borderRadius: 14,
     borderWidth: 1,
     borderColor: 'rgba(212, 175, 55, 0.2)',
@@ -1702,52 +1761,52 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
     backgroundColor: COLORS.secondary,
-    gap: 8,
+    gap: 6,
   },
   browserButtonText: {
     color: COLORS.primary,
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '700',
   },
   progressBarContainer: {
-    height: 4,
+    height: 3,
     backgroundColor: 'rgba(212, 175, 55, 0.3)',
-    borderRadius: 2,
-    marginTop: 12,
+    borderRadius: 1.5,
+    marginTop: 10,
     overflow: 'hidden',
   },
   progressBar: {
     height: '100%',
     backgroundColor: COLORS.secondary,
-    borderRadius: 2,
+    borderRadius: 1.5,
   },
   noNoticesContainer: {
     alignItems: 'center',
-    paddingVertical: 40,
-    backgroundColor: COLORS.cardBg,
-    borderRadius: 18,
+    paddingVertical: 30,
+    backgroundColor: '#FDF5F7',
+    borderRadius: 14,
   },
   noNoticesIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: COLORS.cream,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#FFF9F0',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   noNoticesText: {
-    fontSize: 16,
+    fontSize: 14,
     color: COLORS.ink,
     fontWeight: '600',
-    marginBottom: 4,
+    marginBottom: 3,
   },
   noNoticesSubtext: {
-    fontSize: 13,
+    fontSize: 12,
     color: COLORS.gray,
   },
 });

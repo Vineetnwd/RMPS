@@ -30,8 +30,8 @@ const COLORS = {
   error: '#DC2626',
   success: '#10B981',
   warning: '#F59E0B',
-  background: '#F8FAFC',
-  cream: '#FFF8E7',
+  background: '#FDF5F7',
+  cream: '#FFF5EC',
   cardBg: '#FFFFFF',
   whatsapp: '#25D366',
   phone: '#3B82F6',
@@ -95,7 +95,7 @@ export default function HelpSupportScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [supportData, setSupportData] = useState(null);
+  const [supportData, setSupportData] = useState<any>(null);
   const [error, setError] = useState('');
 
   // Animation refs
@@ -162,21 +162,50 @@ export default function HelpSupportScreen() {
       setLoading(true);
       setError('');
 
+      // Get branch_id from AsyncStorage or student_data
+      let branchId = await AsyncStorage.getItem('branch_id');
+      if (!branchId) {
+        const studentData = await AsyncStorage.getItem('student_data');
+        if (studentData) {
+          const parsed = JSON.parse(studentData);
+          branchId = parsed.branch_id ? parsed.branch_id.toString() : null;
+        }
+      }
+
+      console.log('Fetching support data for branch:', branchId);
+
       const response = await fetch(
         'https://rmpublicschool.org/binex/api.php?task=help_and_support',
         {
-          method: 'GET',
+          method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
+          body: JSON.stringify({ branch_id: branchId ? parseInt(branchId) : null }),
         }
       );
 
       const data = await response.json();
+      console.log('Help and Support Data:', data);
 
-      if (data) {
-        setSupportData(data);
-        await AsyncStorage.setItem('cached_support', JSON.stringify(data));
+      let supportInfo = data;
+      if (Array.isArray(data) && data.length > 0) {
+        supportInfo = data[0];
+      }
+
+      if (supportInfo && supportInfo.id) {
+        const mappedData = {
+          schoolName: supportInfo.full_name || 'RM Public School',
+          branchName: supportInfo.inst_name || '',
+          contact: supportInfo.inst_contact || '',
+          email: supportInfo.inst_email || '',
+          website: supportInfo.inst_url || '',
+          address: [supportInfo.inst_address1, supportInfo.inst_address2].filter(Boolean).join(' ').trim(),
+          affNo: supportInfo.aff_no || '',
+          schoolCode: supportInfo.school_code || '',
+        };
+        setSupportData(mappedData);
+        await AsyncStorage.setItem('cached_support', JSON.stringify(mappedData));
       } else {
         setError('No support information available');
       }
@@ -204,9 +233,10 @@ export default function HelpSupportScreen() {
     fetchSupportData();
   };
 
-  const handleCall = (phone) => {
+  const handleCall = (phone: string) => {
+    if (!phone) return;
     const phoneNumber = phone.replace(/\s/g, '');
-    Linking.openURL(`tel:${phoneNumber}`).catch(err => {
+    Linking.openURL(`tel:+91 ${phoneNumber}`).catch(err => {
       Alert.alert('Error', 'Unable to make a call');
       console.error('Error making call:', err);
     });
@@ -321,9 +351,19 @@ export default function HelpSupportScreen() {
             <View style={styles.headerIconContainer}>
               <Ionicons name="headset" size={26} color={COLORS.primary} />
             </View>
-            <Text style={styles.headerCardText}>
-              We're here to help! Reach out to us anytime
-            </Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.headerCardTitle}>
+                {supportData ? supportData.schoolName : 'RM Public School'}
+              </Text>
+              {supportData?.branchName ? (
+                <Text style={styles.headerCardBranch}>
+                  Branch: {supportData.branchName}
+                </Text>
+              ) : null}
+              <Text style={styles.headerCardText}>
+                We're here to help! Reach out to us anytime
+              </Text>
+            </View>
           </Animated.View>
         </View>
       </View>
@@ -368,30 +408,38 @@ export default function HelpSupportScreen() {
                 <Text style={styles.sectionTitle}>Quick Actions</Text>
               </View>
               <View style={styles.quickActionsGrid}>
-                <QuickActionCard
-                  icon="call"
-                  label="Call Us"
-                  color={COLORS.phone}
-                  onPress={() => handleCall(supportData.contact)}
-                />
-                <QuickActionCard
-                  icon="logo-whatsapp"
-                  label="WhatsApp"
-                  color={COLORS.whatsapp}
-                  onPress={() => handleWhatsApp(supportData.wp_channel)}
-                />
-                <QuickActionCard
-                  icon="mail"
-                  label="Email"
-                  color={COLORS.email}
-                  onPress={() => handleEmail(supportData.email)}
-                />
-                <QuickActionCard
-                  icon="globe"
-                  label="Website"
-                  color={COLORS.web}
-                  onPress={() => handleWebsite(supportData.website)}
-                />
+                {supportData.contact ? (
+                  <QuickActionCard
+                    icon="call"
+                    label="Call Us"
+                    color={COLORS.phone}
+                    onPress={() => handleCall(supportData.contact)}
+                  />
+                ) : null}
+                {supportData.email ? (
+                  <QuickActionCard
+                    icon="mail"
+                    label="Email"
+                    color={COLORS.email}
+                    onPress={() => handleEmail(supportData.email)}
+                  />
+                ) : null}
+                {supportData.website ? (
+                  <QuickActionCard
+                    icon="globe"
+                    label="Website"
+                    color={COLORS.web}
+                    onPress={() => handleWebsite(supportData.website)}
+                  />
+                ) : null}
+                {supportData.address ? (
+                  <QuickActionCard
+                    icon="location"
+                    label="Directions"
+                    color={COLORS.primary}
+                    onPress={() => handleMap(supportData.address)}
+                  />
+                ) : null}
               </View>
             </View>
 
@@ -404,51 +452,62 @@ export default function HelpSupportScreen() {
                 <Text style={styles.sectionTitle}>Contact Information</Text>
               </View>
 
-              <ContactCard
-                icon="call"
-                iconColor={COLORS.phone}
-                title="Phone Number"
-                content={supportData.contact}
-                onPress={() => handleCall(supportData.contact)}
-                actionIcon="call-outline"
-              />
+              {supportData.contact ? (
+                <ContactCard
+                  icon="call"
+                  iconColor={COLORS.phone}
+                  title="Phone Number"
+                  content={supportData.contact}
+                  onPress={() => handleCall(supportData.contact)}
+                  actionIcon="call-outline"
+                />
+              ) : null}
 
-              <ContactCard
-                icon="logo-whatsapp"
-                iconColor={COLORS.whatsapp}
-                title="WhatsApp Support"
-                content="Chat with us on WhatsApp"
-                onPress={() => handleWhatsApp(supportData.wp_channel)}
-                actionIcon="chatbubbles"
-              />
+              {supportData.email ? (
+                <ContactCard
+                  icon="mail"
+                  iconColor={COLORS.email}
+                  title="Email Address"
+                  content={supportData.email}
+                  onPress={() => handleEmail(supportData.email)}
+                  actionIcon="send"
+                />
+              ) : null}
 
-              <ContactCard
-                icon="mail"
-                iconColor={COLORS.email}
-                title="Email Address"
-                content={supportData.email}
-                onPress={() => handleEmail(supportData.email)}
-                actionIcon="send"
-              />
+              {supportData.website ? (
+                <ContactCard
+                  icon="globe"
+                  iconColor={COLORS.web}
+                  title="Website"
+                  content={supportData.website}
+                  onPress={() => handleWebsite(supportData.website)}
+                  actionIcon="open"
+                />
+              ) : null}
 
-              <ContactCard
-                icon="globe"
-                iconColor={COLORS.web}
-                title="Website"
-                content={supportData.website}
-                onPress={() => handleWebsite(supportData.website)}
-                actionIcon="open"
-              />
+              {supportData.address ? (
+                <ContactCard
+                  icon="location"
+                  iconColor={COLORS.primary}
+                  title="School Address"
+                  content={supportData.address}
+                  onPress={() => handleMap(supportData.address)}
+                  actionIcon="navigate"
+                  multiline
+                />
+              ) : null}
 
-              <ContactCard
-                icon="location"
-                iconColor={COLORS.primary}
-                title="School Address"
-                content={supportData.address}
-                onPress={() => handleMap(supportData.address)}
-                actionIcon="navigate"
-                multiline
-              />
+              {supportData.affNo ? (
+                <ContactCard
+                  icon="ribbon"
+                  iconColor={COLORS.secondary}
+                  title="Affiliation No."
+                  content={supportData.affNo}
+                  onPress={() => { }}
+                  actionIcon="copy-outline"
+                  multiline={false}
+                />
+              ) : null}
             </View>
 
             {/* Office Hours */}
@@ -625,7 +684,7 @@ function FAQCard({ question, answer }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#FDF5F7',
   },
 
   // Loading
@@ -633,40 +692,40 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    backgroundColor: '#FDF5F7',
   },
   loadingContent: {
     alignItems: 'center',
   },
   loadingIconContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 30,
-    backgroundColor: COLORS.cream,
+    width: 70,
+    height: 70,
+    borderRadius: 20,
+    backgroundColor: '#FFF9F0',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
-    borderWidth: 3,
+    marginBottom: 8,
+    borderWidth: 2,
     borderColor: 'rgba(212, 175, 55, 0.3)',
   },
   loadingText: {
-    fontSize: 18,
+    fontSize: 12,
     fontWeight: '700',
     color: COLORS.primary,
     marginBottom: 6,
   },
   loadingSubtext: {
-    fontSize: 14,
+    fontSize: 12,
     color: COLORS.gray,
   },
 
   // Header
   header: {
     backgroundColor: COLORS.primary,
-    paddingTop: 50,
-    paddingBottom: 20,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    paddingTop: 30,
+    paddingBottom: 10,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
     overflow: 'hidden',
   },
   headerDecorations: {
@@ -674,9 +733,9 @@ const styles = StyleSheet.create({
   },
   headerBlob: {
     position: 'absolute',
-    width: 140,
-    height: 140,
-    borderRadius: 70,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     backgroundColor: COLORS.secondary,
     opacity: 0.12,
     top: -40,
@@ -713,18 +772,18 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   headerContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 14,
   },
   headerTop: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    marginBottom: 8,
   },
   backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -736,7 +795,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 15,
     fontWeight: '800',
     color: COLORS.white,
     letterSpacing: 0.3,
@@ -752,47 +811,52 @@ const styles = StyleSheet.create({
   headerCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.cardBg,
-    padding: 16,
-    borderRadius: 16,
-    gap: 14,
+    backgroundColor: '#FDF5F7',
+    padding: 10,
+    borderRadius: 12,
+    gap: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.03,
     shadowRadius: 8,
-    elevation: 4,
+    elevation: 1,
   },
   headerIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
+    width: 26,
+    height: 26,
+    borderRadius: 10,
     backgroundColor: 'rgba(212, 175, 55, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  headerCardText: {
-    flex: 1,
+  headerCardTitle: {
     fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.ink,
+    marginBottom: 2,
+  },
+  headerCardText: {
+    fontSize: 11,
     color: COLORS.gray,
-    lineHeight: 20,
+    lineHeight: 18,
   },
 
   // Error Banner
   errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.cream,
-    padding: 14,
+    backgroundColor: '#FFF9F0',
+    padding: 10,
     marginHorizontal: 20,
-    marginTop: 16,
-    borderRadius: 14,
-    gap: 10,
+    marginTop: 10,
+    borderRadius: 10,
+    gap: 6,
     borderWidth: 1,
     borderColor: 'rgba(212, 175, 55, 0.2)',
   },
   errorBannerText: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 12,
     color: COLORS.ink,
     fontWeight: '500',
   },
@@ -802,30 +866,30 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 20,
+    paddingBottom: 10,
   },
 
   // Section
   section: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 14,
     paddingTop: 24,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
-    gap: 10,
+    marginBottom: 10,
+    gap: 6,
   },
   sectionHeaderIcon: {
-    width: 32,
-    height: 32,
+    width: 26,
+    height: 26,
     borderRadius: 10,
     backgroundColor: 'rgba(212, 175, 55, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
     color: COLORS.ink,
   },
@@ -834,31 +898,31 @@ const styles = StyleSheet.create({
   quickActionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 8,
   },
   quickActionCard: {
-    backgroundColor: COLORS.cardBg,
-    borderRadius: 18,
-    padding: 20,
+    backgroundColor: '#FDF5F7',
+    borderRadius: 10,
+    padding: 10,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(0, 0, 0, 0.04)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.03,
     shadowRadius: 6,
-    elevation: 2,
+    elevation: 1,
   },
   quickActionIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
+    width: 28,
+    height: 28,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
   },
   quickActionLabel: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '700',
     color: COLORS.ink,
   },
@@ -867,22 +931,22 @@ const styles = StyleSheet.create({
   contactCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.cardBg,
-    borderRadius: 16,
-    padding: 16,
+    backgroundColor: '#FDF5F7',
+    borderRadius: 12,
+    padding: 10,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: 'rgba(0, 0, 0, 0.04)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.03,
     shadowRadius: 6,
-    elevation: 2,
+    elevation: 1,
   },
   contactIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
+    width: 26,
+    height: 26,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
@@ -899,7 +963,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   contactText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
     color: COLORS.ink,
   },
@@ -907,8 +971,8 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   contactAction: {
-    width: 40,
-    height: 40,
+    width: 26,
+    height: 26,
     borderRadius: 12,
     backgroundColor: 'rgba(212, 175, 55, 0.15)',
     justifyContent: 'center',
@@ -917,16 +981,16 @@ const styles = StyleSheet.create({
 
   // Hours Card
   hoursCard: {
-    backgroundColor: COLORS.cardBg,
-    borderRadius: 18,
-    padding: 20,
+    backgroundColor: '#FDF5F7',
+    borderRadius: 10,
+    padding: 10,
     borderWidth: 1,
     borderColor: 'rgba(0, 0, 0, 0.04)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.03,
     shadowRadius: 6,
-    elevation: 2,
+    elevation: 1,
   },
   hoursRow: {
     flexDirection: 'row',
@@ -934,8 +998,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   hoursIconContainer: {
-    width: 32,
-    height: 32,
+    width: 26,
+    height: 26,
     borderRadius: 10,
     backgroundColor: 'rgba(212, 175, 55, 0.15)',
     justifyContent: 'center',
@@ -944,12 +1008,12 @@ const styles = StyleSheet.create({
   },
   hoursDay: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
     color: COLORS.ink,
   },
   hoursTime: {
-    fontSize: 13,
+    fontSize: 12,
     color: COLORS.secondary,
     fontWeight: '700',
   },
@@ -961,26 +1025,26 @@ const styles = StyleSheet.create({
 
   // FAQ Cards
   faqCard: {
-    backgroundColor: COLORS.cardBg,
-    borderRadius: 16,
-    padding: 16,
+    backgroundColor: '#FDF5F7',
+    borderRadius: 12,
+    padding: 10,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: 'rgba(0, 0, 0, 0.04)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.03,
     shadowRadius: 6,
-    elevation: 2,
+    elevation: 1,
   },
   faqHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
   },
   faqIconContainer: {
-    width: 32,
-    height: 32,
+    width: 26,
+    height: 26,
     borderRadius: 10,
     backgroundColor: 'rgba(212, 175, 55, 0.15)',
     justifyContent: 'center',
@@ -988,7 +1052,7 @@ const styles = StyleSheet.create({
   },
   faqQuestion: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
     color: COLORS.ink,
   },
@@ -996,10 +1060,10 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: COLORS.lightGray,
+    borderTopColor: '#F0F0F0',
   },
   faqAnswer: {
-    fontSize: 13,
+    fontSize: 12,
     color: COLORS.gray,
     lineHeight: 22,
   },
@@ -1008,7 +1072,7 @@ const styles = StyleSheet.create({
   emergencyCard: {
     marginHorizontal: 20,
     marginTop: 24,
-    borderRadius: 18,
+    borderRadius: 10,
     overflow: 'hidden',
     shadowColor: COLORS.error,
     shadowOffset: { width: 0, height: 4 },
@@ -1019,13 +1083,13 @@ const styles = StyleSheet.create({
   emergencyInner: {
     flexDirection: 'row',
     backgroundColor: COLORS.error,
-    padding: 20,
+    padding: 10,
     gap: 16,
   },
   emergencyIconContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1034,16 +1098,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   emergencyTitle: {
-    fontSize: 17,
+    fontSize: 12,
     fontWeight: '700',
     color: COLORS.white,
     marginBottom: 4,
   },
   emergencyText: {
-    fontSize: 13,
+    fontSize: 12,
     color: COLORS.white,
     opacity: 0.9,
-    marginBottom: 14,
+    marginBottom: 8,
     lineHeight: 20,
   },
   emergencyButton: {
@@ -1051,7 +1115,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     alignSelf: 'flex-start',
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 12,
     gap: 8,
@@ -1059,7 +1123,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   emergencyButtonText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '700',
     color: COLORS.white,
   },

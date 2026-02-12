@@ -15,7 +15,7 @@ const COLORS = {
 export default function RootLayout() {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
- 
+
   useEffect(() => {
     checkAuthStatus();
   }, []);
@@ -24,31 +24,37 @@ export default function RootLayout() {
     try {
       // Check for student_id first
       const studentId = await AsyncStorage.getItem('student_id');
-      
+
       if (studentId) {
         // Student is logged in
-        console.log('Student found, redirecting to student/index');
+        console.log('Student found, redirecting to student_home');
         router.replace('./student_home');
         setIsLoading(false);
         return;
       }
 
-      // Check for user_id (admin)
+      // Check for user_id (admin/teacher)
       const userId = await AsyncStorage.getItem('user_id');
-      
+      const userType = await AsyncStorage.getItem('user_type');
+
       if (userId) {
-        // Admin is logged in
-        console.log('Admin found, redirecting to Dashboard');
-        router.replace('/Dashboard');
+        // Check if user is a teacher
+        if (userType === 'TEACHER') {
+          console.log('Teacher found, redirecting to TeacherDashboard');
+          router.replace('/TeacherDashboard');
+        } else {
+          // Admin or other user type
+          console.log('Admin found, redirecting to Dashboard');
+          router.replace('/Dashboard');
+        }
         setIsLoading(false);
         return;
       }
 
       // No one is logged in, go to login screen
-      console.log('No user found, redirecting to login');
-     // router.replace('/');
+      console.log('No user found, staying on index');
       setIsLoading(false);
-      
+
     } catch (error) {
       console.error('Error checking auth status:', error);
       router.replace('/index');
@@ -70,6 +76,7 @@ export default function RootLayout() {
         <Stack.Screen name="student-selection" options={{ headerShown: false }} />
         <Stack.Screen name="student_home" options={{ headerShown: false }} />
         <Stack.Screen name="Dashboard" options={{ headerShown: false }} />
+        <Stack.Screen name="TeacherDashboard" options={{ headerShown: false }} />
         <Stack.Screen name="SearchStudent" options={{ headerShown: false }} />
         <Stack.Screen name="PayFee" options={{ headerShown: false }} />
         <Stack.Screen name="PaymentConfirmationScreen" options={{ headerShown: false }} />
@@ -82,6 +89,8 @@ export default function RootLayout() {
         <Stack.Screen name="OnlinePaymentScreen" options={{ headerShown: false }} />
         <Stack.Screen name="StudentFeeScreen" options={{ headerShown: false }} />
         <Stack.Screen name="StudentPayFeeScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="AdmitCardScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="LiveClassesScreen" options={{ headerShown: false }} />
       </Stack>
     </SafeAreaProvider>
   );
@@ -100,7 +109,7 @@ function SplashScreen() {
         <Text style={styles.schoolName}>Delhi Public School</Text>
         <Text style={styles.tagline}>Mushkipur</Text>
       </View>
-      
+
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={COLORS.accent} />
         <Text style={styles.loadingText}>Loading...</Text>

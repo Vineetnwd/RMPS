@@ -1,11 +1,12 @@
 import { FontAwesome5, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Alert,
+  Animated,
   Dimensions,
+  Image,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -13,40 +14,118 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import * as Animatable from 'react-native-animatable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
 
-// DPS Theme Colors
 const COLORS = {
-  primary: '#d31103',      // DPS Red
-  secondary: '#ffc002',    // DPS Gold
-  accent: '#d31103',       // DPS Red
+  primary: '#7A0C2E',
+  primaryDark: '#5A0820',
+  primaryLight: '#9A1C4E',
+  secondary: '#D4AF37',
+  secondaryLight: '#E6C35C',
+  secondaryDark: '#B8942D',
   white: '#FFFFFF',
-  gray: '#757575',
-  lightGray: '#E0E0E0',
-  error: '#F44336',
-  background: '#F5F7FA',
+  ink: '#0F172A',
+  gray: '#64748B',
+  lightGray: '#E2E8F0',
+  error: '#DC2626',
+  success: '#10B981',
+  warning: '#F59E0B',
+  background: '#FDF5F7',
+  cream: '#FFF5EC',
   cardBg: '#FFFFFF',
 };
+
+// Vector Shape Components
+const DiamondShape = ({ style, color = COLORS.secondary, size = 20 }: any) => (
+  <View
+    style={[
+      {
+        width: size,
+        height: size,
+        backgroundColor: color,
+        transform: [{ rotate: '45deg' }],
+      },
+      style,
+    ]}
+  />
+);
+
+const DottedPattern = ({ style, rows = 3, cols = 4, dotColor = COLORS.secondary }: any) => (
+  <View style={[styles.dottedContainer, style]}>
+    {[...Array(rows)].map((_, rowIndex) => (
+      <View key={rowIndex} style={styles.dottedRow}>
+        {[...Array(cols)].map((_, colIndex) => (
+          <View
+            key={colIndex}
+            style={[
+              styles.dot,
+              {
+                backgroundColor: dotColor,
+                opacity: 0.3 + (rowIndex * cols + colIndex) * 0.03
+              },
+            ]}
+          />
+        ))}
+      </View>
+    ))}
+  </View>
+);
 
 const StudentProfile = () => {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [student, setStudent] = useState(null);
-  const [error, setError] = useState(null);
+  const [student, setStudent] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // Animation refs
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(20)).current;
+  const floatAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(floatAnim, {
+          toValue: 1,
+          duration: 3000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(floatAnim, {
+          toValue: 0,
+          duration: 3000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+
     fetchStudentProfile();
   }, []);
+
+  const floatTranslate = floatAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -8],
+  });
 
   const fetchStudentProfile = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Get student_id from AsyncStorage
       const studentId = await AsyncStorage.getItem('student_id');
 
       if (!studentId) {
@@ -69,7 +148,6 @@ const StudentProfile = () => {
 
       if (data && data.length > 0) {
         setStudent(data[0]);
-        // Update cached data
         await AsyncStorage.setItem('student_data', JSON.stringify(data[0]));
       } else {
         setError('Student profile not found');
@@ -78,7 +156,6 @@ const StudentProfile = () => {
       setError('Failed to fetch student data');
       console.error(err);
 
-      // Try to load cached data
       try {
         const cachedData = await AsyncStorage.getItem('student_data');
         if (cachedData) {
@@ -98,10 +175,7 @@ const StudentProfile = () => {
       'Logout',
       'Are you sure you want to logout?',
       [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
+        { text: 'Cancel', style: 'cancel' },
         {
           text: 'Logout',
           onPress: async () => {
@@ -118,248 +192,223 @@ const StudentProfile = () => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <Animatable.View
-          animation="pulse"
-          easing="ease-out"
-          iterationCount="infinite"
-        >
-          <View style={styles.logoCircle}>
-            <Text style={styles.logoText}>DPS</Text>
+        <StatusBar barStyle="dark-content" backgroundColor={COLORS.primary} />
+        <View style={styles.loadingContent}>
+          <View style={styles.loadingIconContainer}>
+            <Ionicons name="person" size={36} color={COLORS.primary} />
           </View>
-        </Animatable.View>
-        <Text style={styles.loadingText}>Loading student profile...</Text>
+          <Text style={styles.loadingText}>Loading Profile...</Text>
+          <Text style={styles.loadingSubtext}>Please wait a moment</Text>
+        </View>
       </View>
     );
   }
 
   if (error && !student) {
     return (
-      <View style={styles.errorContainer}>
-        <Ionicons name="alert-circle-outline" size={70} color={COLORS.error} />
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity
-          style={styles.retryButton}
-          onPress={fetchStudentProfile}
-        >
-          <LinearGradient
-            colors={[COLORS.secondary, COLORS.primary]}
-            style={styles.retryButtonGradient}
-          >
-            <Ionicons name="refresh" size={20} color={COLORS.white} />
+      <View style={styles.loadingContainer}>
+        <StatusBar barStyle="dark-content" backgroundColor={COLORS.primary} />
+        <View style={styles.loadingContent}>
+          <View style={[styles.loadingIconContainer, { borderColor: 'rgba(220, 38, 38, 0.3)' }]}>
+            <Ionicons name="alert-circle" size={36} color={COLORS.error} />
+          </View>
+          <Text style={styles.loadingText}>{error}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={fetchStudentProfile}>
+            <Ionicons name="refresh" size={16} color={COLORS.white} />
             <Text style={styles.retryButtonText}>Try Again</Text>
-          </LinearGradient>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
 
+  const BRANCH_PHOTO_FOLDER: Record<string, string> = {
+    '1': 'Bishambharpur',
+    '2': 'Barauli',
+    '4': 'Barharia',
+  };
+  const getPhotoUrl = (branchId: string, admission: string) => {
+    const folder = BRANCH_PHOTO_FOLDER[branchId] || 'Bishambharpur';
+    return `https://rmpublicschool.org/binex/student_photo/${folder}/Photo/${admission}.jpg`;
+  };
+
   const imageSource = student?.student_photo !== "no_image.jpg"
-    ? { uri: `https://dpsmushkipur.com/uploads/${student.student_photo}` }
+    ? { uri: getPhotoUrl(student.branch_id, student.student_admission) }
     : null;
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#7A0C2E" />
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.primary} />
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Header with DPS Gradient */}
-        <LinearGradient
-          colors={[COLORS.primary, COLORS.secondary]}
-          style={styles.headerBackground}
-        >
+        {/* Header */}
+        <View style={styles.header}>
+          {/* Background Decorations */}
+          <View style={styles.headerDecorations} pointerEvents="none">
+            <Animated.View
+              style={[
+                styles.headerBlob1,
+                { transform: [{ translateY: floatTranslate }] },
+              ]}
+            />
+            <View style={styles.headerBlob2} />
+            <DiamondShape style={styles.headerDiamond1} color="rgba(212, 175, 55, 0.3)" size={12} />
+            <DiamondShape style={styles.headerDiamond2} color="rgba(255, 255, 255, 0.15)" size={8} />
+            <DottedPattern style={styles.headerDots} rows={2} cols={4} dotColor="rgba(255, 255, 255, 0.25)" />
+            <View style={styles.headerStripe} />
+          </View>
+
           {/* Header Actions */}
           <View style={styles.headerActions}>
             <TouchableOpacity
               style={styles.backButton}
               onPress={() => router.back()}
             >
-              <Ionicons name="arrow-back" size={24} color={COLORS.white} />
+              <Ionicons name="arrow-back" size={22} color={COLORS.white} />
             </TouchableOpacity>
 
+            <Text style={styles.headerTitle}>Student Profile</Text>
+
             <TouchableOpacity
-              style={styles.logoutButton}
+              style={styles.logoutBtn}
               onPress={handleLogout}
             >
-              <Ionicons name="log-out-outline" size={24} color={COLORS.white} />
+              <Ionicons name="log-out-outline" size={20} color={COLORS.white} />
             </TouchableOpacity>
           </View>
 
-
-
-          {/* Student Photo */}
-          <Animatable.View
-            animation="fadeIn"
-            duration={1000}
-            style={styles.profileContainer}
+          {/* Profile Section */}
+          <Animated.View
+            style={[
+              styles.profileSection,
+              { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
+            ]}
           >
-
-            {/* Student Name & Badge */}
-            <View style={styles.infoOverlay}>
-              <Text style={styles.studentName}>{student?.student_name}</Text>
-
-              <View style={styles.studentBasicInfo}>
-                <View style={styles.infoItem}>
-                  <Ionicons name="school" size={16} color={COLORS.accent} />
-                  <Text style={styles.infoText}>
-                    {student?.student_class} - {student?.student_section}
+            {/* Avatar */}
+            <View style={styles.profileImageWrapper}>
+              {imageSource ? (
+                <Image source={imageSource} style={styles.profileImage} />
+              ) : (
+                <View style={styles.profilePlaceholder}>
+                  <Text style={styles.profileInitial}>
+                    {student?.student_name?.charAt(0) || 'S'}
                   </Text>
                 </View>
-                <View style={styles.infoItem}>
-                  <Ionicons name="id-card" size={16} color={COLORS.accent} />
-                  <Text style={styles.infoText}>Roll #{student?.student_roll}</Text>
-                </View>
-              </View>
+              )}
+            </View>
 
-              <View style={styles.badgeContainer}>
-                <LinearGradient
-                  colors={[COLORS.accent, '#FFD54F']}
-                  style={styles.badge}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                >
-                  <Ionicons name="bus" size={14} color={COLORS.primary} />
-                  <Text style={styles.badgeText}>{student?.student_type}</Text>
-                </LinearGradient>
+            {/* Name & Info */}
+            <Text style={styles.studentName}>{student?.student_name}</Text>
+
+            <View style={styles.infoPillsRow}>
+              <View style={styles.infoPill}>
+                <Ionicons name="school" size={12} color={COLORS.secondary} />
+                <Text style={styles.infoPillText}>
+                  {student?.student_class} - {student?.student_section}
+                </Text>
+              </View>
+              <View style={styles.infoPill}>
+                <Ionicons name="id-card" size={12} color={COLORS.secondary} />
+                <Text style={styles.infoPillText}>Roll #{student?.student_roll}</Text>
               </View>
             </View>
-          </Animatable.View>
-        </LinearGradient>
+
+            {student?.student_type && (
+              <View style={styles.typeBadge}>
+                <Ionicons name="bus" size={12} color={COLORS.primary} />
+                <Text style={styles.typeBadgeText}>{student.student_type}</Text>
+              </View>
+            )}
+          </Animated.View>
+        </View>
 
         {/* Error Banner */}
         {error && student && (
           <View style={styles.errorBanner}>
-            <Ionicons name="alert-circle" size={16} color={COLORS.error} />
+            <Ionicons name="information-circle" size={16} color={COLORS.secondary} />
             <Text style={styles.errorBannerText}>{error}</Text>
           </View>
         )}
 
         <View style={styles.contentContainer}>
           {/* Academic Information */}
-          <Animatable.View animation="fadeInUp" delay={200}>
+          <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
             <DetailCard
               title="Academic Information"
-              icon={<FontAwesome5 name="user-graduate" size={22} color={COLORS.primary} />}
+              icon={<FontAwesome5 name="user-graduate" size={16} color={COLORS.secondary} />}
               details={[
-                {
-                  icon: <MaterialIcons name="school" size={20} color={COLORS.secondary} />,
-                  label: "Admission No",
-                  value: student?.student_admission
-                },
-                {
-                  icon: <Ionicons name="book" size={20} color={COLORS.secondary} />,
-                  label: "Class",
-                  value: student?.student_class
-                },
-                {
-                  icon: <FontAwesome5 name="chalkboard" size={18} color={COLORS.secondary} />,
-                  label: "Section",
-                  value: student?.student_section
-                },
-                {
-                  icon: <MaterialIcons name="format-list-numbered" size={20} color={COLORS.secondary} />,
-                  label: "Roll Number",
-                  value: student?.student_roll
-                },
+                { icon: <MaterialIcons name="date-range" size={16} color={COLORS.secondary} />, label: "Session", value: student?.student_session },
+                { icon: <MaterialIcons name="confirmation-number" size={16} color={COLORS.secondary} />, label: "Admission No", value: student?.student_admission },
+                { icon: <MaterialIcons name="event" size={16} color={COLORS.secondary} />, label: "Date of Admission", value: student?.date_of_admission },
+                { icon: <MaterialIcons name="category" size={16} color={COLORS.secondary} />, label: "Admission Type", value: student?.admission_type },
+                { icon: <Ionicons name="school" size={16} color={COLORS.secondary} />, label: "Class", value: `${student?.student_class} - ${student?.student_section}` },
+                { icon: <MaterialIcons name="format-list-numbered" size={16} color={COLORS.secondary} />, label: "Roll Number", value: student?.student_roll },
+                { icon: <FontAwesome5 name="home" size={14} color={COLORS.secondary} />, label: "House", value: student?.house_name || "N/A" },
               ]}
             />
-          </Animatable.View>
+          </Animated.View>
 
           {/* Personal Information */}
-          <Animatable.View animation="fadeInUp" delay={400}>
+          <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
             <DetailCard
               title="Personal Information"
-              icon={<Ionicons name="person" size={22} color={COLORS.primary} />}
+              icon={<Ionicons name="person" size={16} color={COLORS.secondary} />}
               details={[
+                { icon: <FontAwesome5 name="birthday-cake" size={14} color={COLORS.secondary} />, label: "Date of Birth", value: student?.date_of_birth },
+                { icon: <Ionicons name="male-female" size={16} color={COLORS.secondary} />, label: "Gender", value: student?.student_sex },
+                { icon: <FontAwesome5 name="tint" size={14} color={COLORS.secondary} />, label: "Blood Group", value: student?.student_bloodgroup !== "NULL" ? student?.student_bloodgroup : "N/A" },
+                { icon: <MaterialIcons name="category" size={16} color={COLORS.secondary} />, label: "Category", value: student?.student_category !== "NULL" ? student?.student_category : "N/A" },
+                { icon: <FontAwesome5 name="pray" size={14} color={COLORS.secondary} />, label: "Religion", value: student?.student_religion !== "NULL" ? student?.student_religion : "N/A" },
+                { icon: <FontAwesome5 name="id-card" size={14} color={COLORS.secondary} />, label: "Aadhar No", value: student?.aadhar_no !== "NULL" ? student?.aadhar_no : "N/A" },
+              ]}
+            />
+          </Animated.View>
+
+          {/* Contact & Address */}
+          <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+            <DetailCard
+              title="Contact Details"
+              icon={<Ionicons name="call" size={16} color={COLORS.secondary} />}
+              details={[
+                { icon: <Ionicons name="call" size={16} color={COLORS.secondary} />, label: "Mobile", value: student?.student_mobile },
+                { icon: <Ionicons name="logo-whatsapp" size={16} color={COLORS.secondary} />, label: "WhatsApp", value: student?.student_whatsapp },
+                { icon: <MaterialIcons name="email" size={16} color={COLORS.secondary} />, label: "Email", value: student?.student_email },
                 {
-                  icon: <Ionicons name="male-female" size={20} color={COLORS.secondary} />,
-                  label: "Gender",
-                  value: student?.student_sex
+                  icon: <Ionicons name="location" size={16} color={COLORS.secondary} />,
+                  label: "Address",
+                  value: [student?.student_address1, student?.student_address2]
+                    .filter(p => p && p !== 'NULL' && p.trim() !== '')
+                    .join(', ')
                 },
                 {
-                  icon: <FontAwesome5 name="user-tie" size={18} color={COLORS.secondary} />,
-                  label: "Father's Name",
-                  value: student?.student_father || "Not Available"
-                },
-                {
-                  icon: <Ionicons name="woman" size={20} color={COLORS.secondary} />,
-                  label: "Mother's Name",
-                  value: student?.student_mother || "Not Available"
-                },
-                {
-                  icon: <Ionicons name="call" size={20} color={COLORS.secondary} />,
-                  label: "Contact Number",
-                  value: student?.student_mobile
+                  icon: <MaterialIcons name="location-city" size={16} color={COLORS.secondary} />,
+                  label: "Region",
+                  value: [
+                    [student?.district_code, student?.state_code].filter(p => p && p !== 'NULL').join(', '),
+                    student?.pin_code && student?.pin_code !== 'NULL' ? student?.pin_code : null
+                  ].filter(Boolean).join(' - ')
                 },
               ]}
             />
-          </Animatable.View>
+          </Animated.View>
 
-          {/* Quick Actions */}
-          <Animatable.View animation="fadeInUp" delay={600}>
-            <Text style={styles.sectionTitle}>Quick Actions</Text>
-            <View style={styles.actionButtonContainer}>
-              <ActionButton
-                icon="calendar-outline"
-                label="Attendance"
-                gradient={[COLORS.secondary, '#81C784']}
-                onPress={() => router.push('/student/attendance')}
-              />
-              <ActionButton
-                icon="book-outline"
-                label="Homework"
-                gradient={['#2196F3', '#64B5F6']}
-                onPress={() => router.push('/student/homework')}
-              />
-              <ActionButton
-                icon="trophy-outline"
-                label="Exam Report"
-                gradient={['#FF9800', '#FFB74D']}
-                onPress={() => router.push('/student/exam-report')}
-              />
-            </View>
-
-            <View style={styles.actionButtonContainer}>
-              <ActionButton
-                icon="card-outline"
-                label="Payment"
-                gradient={[COLORS.accent, '#FFD54F']}
-                onPress={() => router.push('/student/online-payment')}
-              />
-              <ActionButton
-                icon="bus-outline"
-                label="Live Bus"
-                gradient={['#795548', '#A1887F']}
-                onPress={() => router.push('/student/live-bus')}
-              />
-              <ActionButton
-                icon="notifications-outline"
-                label="Notices"
-                gradient={['#E91E63', '#F06292']}
-                onPress={() => router.push('/student/noticeboard')}
-              />
-            </View>
-          </Animatable.View>
+          {/* Family Information */}
+          <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+            <DetailCard
+              title="Family Information"
+              icon={<MaterialIcons name="family-restroom" size={16} color={COLORS.secondary} />}
+              details={[
+                { icon: <MaterialIcons name="person" size={16} color={COLORS.secondary} />, label: "Father's Name", value: student?.student_father },
+                { icon: <MaterialIcons name="work" size={16} color={COLORS.secondary} />, label: "Father's Occupation", value: student?.father_occupation !== "NULL" ? student?.father_occupation : "N/A" },
+                { icon: <MaterialIcons name="school" size={16} color={COLORS.secondary} />, label: "Father's Qualification", value: student?.father_qualification !== "NULL" ? student?.father_qualification : "N/A" },
+                { icon: <MaterialIcons name="person" size={16} color={COLORS.secondary} />, label: "Mother's Name", value: student?.student_mother },
+                { icon: <MaterialIcons name="work" size={16} color={COLORS.secondary} />, label: "Mother's Occupation", value: student?.mother_occupation !== "NULL" ? student?.mother_occupation : "N/A" },
+              ]}
+            />
+          </Animated.View>
 
           {/* Settings */}
-          <Animatable.View animation="fadeInUp" delay={800}>
+          <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
             <View style={styles.settingsCard}>
-              <SettingItem
-                icon="create-outline"
-                label="Edit Profile"
-                color="#2196F3"
-                onPress={() => { }}
-              />
-              <SettingItem
-                icon="lock-closed-outline"
-                label="Change Password"
-                color="#FF9800"
-                onPress={() => { }}
-              />
-              <SettingItem
-                icon="shield-checkmark-outline"
-                label="Privacy Settings"
-                color="#9C27B0"
-                onPress={() => { }}
-              />
               <SettingItem
                 icon="log-out-outline"
                 label="Logout"
@@ -367,202 +416,234 @@ const StudentProfile = () => {
                 onPress={handleLogout}
               />
             </View>
-          </Animatable.View>
+          </Animated.View>
+
+          <View style={{ height: 30 }} />
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 };
 
-const DetailCard = ({ title, icon, details }) => (
-  <View style={styles.card}>
-    <View style={styles.cardHeader}>
-      <View style={styles.cardIconContainer}>
-        {icon}
-      </View>
-      <Text style={styles.cardTitle}>{title}</Text>
-    </View>
+const DetailCard = ({ title, icon, details }: any) => {
+  // Helper to check if value is valid
+  const isValid = (val: any) => {
+    if (!val) return false;
+    const str = String(val).trim().toUpperCase();
+    return str !== '' && str !== 'NULL' && str !== '0000-00-00' && str !== 'N/A' && str !== '0' && str !== 'UNDEFINED';
+  };
 
-    <View style={styles.cardContent}>
-      {details.map((item, index) => (
-        <View
-          key={index}
-          style={[
-            styles.detailRow,
-            index === details.length - 1 && styles.detailRowLast
-          ]}
-        >
-          <View style={styles.detailIcon}>{item.icon}</View>
-          <Text style={styles.detailLabel}>{item.label}</Text>
-          <Text style={styles.detailValue}>{item.value}</Text>
+  const validDetails = details.filter((item: any) => isValid(item.value));
+
+  if (validDetails.length === 0) return null;
+
+  return (
+    <View style={styles.card}>
+      <View style={styles.cardHeader}>
+        <View style={styles.cardIconContainer}>
+          {icon}
         </View>
-      ))}
+        <Text style={styles.cardTitle}>{title}</Text>
+      </View>
+
+      <View style={styles.cardContent}>
+        {validDetails.map((item: any, index: number) => (
+          <View
+            key={index}
+            style={[
+              styles.detailRow,
+              index === validDetails.length - 1 && styles.detailRowLast
+            ]}
+          >
+            <View style={styles.detailIcon}>{item.icon}</View>
+            <Text style={styles.detailLabel}>{item.label}</Text>
+            <Text style={styles.detailValue}>{item.value}</Text>
+          </View>
+        ))}
+      </View>
     </View>
-  </View>
-);
+  );
+};
 
-const ActionButton = ({ icon, label, gradient, onPress }) => (
-  <TouchableOpacity
-    style={styles.actionButton}
-    activeOpacity={0.8}
-    onPress={onPress}
-  >
-    <LinearGradient
-      colors={gradient}
-      style={styles.actionButtonGradient}
-    >
-      <Ionicons name={icon} size={28} color={COLORS.white} />
-      <Text style={styles.actionButtonLabel}>{label}</Text>
-    </LinearGradient>
-  </TouchableOpacity>
-);
-
-const SettingItem = ({ icon, label, color, onPress }) => (
+const SettingItem = ({ icon, label, color, onPress }: any) => (
   <TouchableOpacity
     style={styles.settingItem}
     onPress={onPress}
     activeOpacity={0.7}
   >
-    <View style={[styles.settingIcon, { backgroundColor: color + '20' }]}>
-      <Ionicons name={icon} size={22} color={color} />
+    <View style={[styles.settingIcon, { backgroundColor: color + '15' }]}>
+      <Ionicons name={icon} size={18} color={color} />
     </View>
     <Text style={styles.settingLabel}>{label}</Text>
-    <Ionicons name="chevron-forward" size={20} color={COLORS.gray} />
+    <Ionicons name="chevron-forward" size={16} color={COLORS.gray} />
   </TouchableOpacity>
 );
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#FDF5F7',
   },
+
+  // Loading
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    backgroundColor: '#FDF5F7',
   },
-  logoCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: COLORS.accent,
+  loadingContent: {
+    alignItems: 'center',
+  },
+  loadingIconContainer: {
+    width: 70,
+    height: 70,
+    borderRadius: 20,
+    backgroundColor: '#FFF9F0',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 4,
-    borderColor: COLORS.primary,
-  },
-  logoText: {
-    fontSize: 36,
-    fontWeight: '900',
-    color: COLORS.primary,
-    letterSpacing: 2,
+    marginBottom: 8,
+    borderWidth: 2,
+    borderColor: 'rgba(212, 175, 55, 0.3)',
   },
   loadingText: {
-    marginTop: 20,
-    fontSize: 16,
+    fontSize: 12,
+    fontWeight: '700',
     color: COLORS.primary,
-    fontWeight: '600',
+    marginBottom: 6,
   },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 30,
-    backgroundColor: COLORS.background,
-  },
-  errorText: {
-    fontSize: 18,
+  loadingSubtext: {
+    fontSize: 11,
     color: COLORS.gray,
-    marginTop: 20,
-    marginBottom: 25,
-    textAlign: 'center',
   },
   retryButton: {
-    borderRadius: 30,
-    overflow: 'hidden',
-    elevation: 5,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-  },
-  retryButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 30,
-    paddingVertical: 14,
-    gap: 10,
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 10,
+    gap: 6,
+    marginTop: 12,
   },
   retryButtonText: {
     color: COLORS.white,
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 12,
+    fontWeight: '700',
   },
-  headerBackground: {
-    paddingTop: 20,
-    paddingBottom: 30,
-    position: 'relative',
+
+  // Header
+  header: {
+    backgroundColor: COLORS.primary,
+    paddingTop: 8,
+    paddingBottom: 20,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    overflow: 'hidden',
+  },
+  headerDecorations: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  headerBlob1: {
+    position: 'absolute',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: COLORS.secondary,
+    opacity: 0.08,
+    top: -30,
+    right: -30,
+  },
+  headerBlob2: {
+    position: 'absolute',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: COLORS.secondary,
+    opacity: 0.06,
+    bottom: 20,
+    left: -20,
+  },
+  headerDiamond1: {
+    position: 'absolute',
+    top: 40,
+    left: 30,
+  },
+  headerDiamond2: {
+    position: 'absolute',
+    bottom: 40,
+    right: 50,
+  },
+  headerDots: {
+    position: 'absolute',
+    bottom: 30,
+    right: 20,
+  },
+  headerStripe: {
+    position: 'absolute',
+    top: 60,
+    right: -15,
+    width: 80,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: COLORS.secondary,
+    opacity: 0.06,
+    transform: [{ rotate: '-15deg' }],
   },
   headerActions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    marginBottom: 15,
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    marginBottom: 16,
+    zIndex: 1,
   },
   backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-  logoutButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+  headerTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: COLORS.white,
+    letterSpacing: 0.3,
+  },
+  logoutBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-  dpsLogoContainer: {
+
+  // Profile Section
+  profileSection: {
     alignItems: 'center',
-    marginBottom: 15,
-  },
-  dpsLogo: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: COLORS.accent,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: COLORS.white,
-  },
-  dpsLogoText: {
-    fontSize: 20,
-    fontWeight: '900',
-    color: COLORS.primary,
-    letterSpacing: 1,
-  },
-  profileContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingHorizontal: 14,
+    zIndex: 1,
   },
   profileImageWrapper: {
-    width: 130,
-    height: 130,
-    borderRadius: 65,
-    borderWidth: 5,
-    borderColor: COLORS.accent,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 3,
+    borderColor: COLORS.secondary,
     overflow: 'hidden',
-    marginBottom: 15,
-    elevation: 10,
+    marginBottom: 10,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 5,
     backgroundColor: COLORS.white,
   },
   profileImage: {
@@ -572,207 +653,204 @@ const styles = StyleSheet.create({
   profilePlaceholder: {
     width: '100%',
     height: '100%',
-    backgroundColor: COLORS.accent,
+    backgroundColor: COLORS.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  infoOverlay: {
-    width: '90%',
-    borderRadius: 20,
-    overflow: 'hidden',
-    alignItems: 'center',
-    paddingVertical: 20,
-    paddingHorizontal: 15,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+  profileInitial: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: COLORS.white,
   },
   studentName: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 18,
+    fontWeight: '800',
     color: COLORS.white,
     marginBottom: 8,
     textAlign: 'center',
+    letterSpacing: 0.3,
   },
-  studentBasicInfo: {
+  infoPillsRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    flexWrap: 'wrap',
-    marginTop: 5,
+    gap: 8,
+    marginBottom: 8,
   },
-  infoItem: {
+  infoPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 10,
-    marginVertical: 3,
+    gap: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-  infoText: {
+  infoPillText: {
+    fontSize: 11,
     color: COLORS.white,
-    marginLeft: 6,
-    fontSize: 14,
     fontWeight: '600',
   },
-  badgeContainer: {
-    marginTop: 12,
-  },
-  badge: {
+  typeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 6,
+    gap: 4,
+    backgroundColor: COLORS.secondary,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 10,
   },
-  badgeText: {
+  typeBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
     color: COLORS.primary,
-    fontWeight: 'bold',
-    fontSize: 13,
   },
+
+  // Error Banner
   errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFEBEE',
-    padding: 12,
-    marginHorizontal: 20,
-    marginTop: 15,
+    backgroundColor: '#FFF9F0',
+    padding: 10,
+    marginHorizontal: 14,
+    marginTop: 10,
     borderRadius: 10,
-    gap: 10,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.2)',
   },
   errorBannerText: {
     flex: 1,
-    fontSize: 13,
-    color: COLORS.error,
+    fontSize: 11,
+    color: COLORS.ink,
+    fontWeight: '500',
   },
+
+  // Content
   contentContainer: {
-    padding: 20,
+    padding: 10,
   },
+
+  // Detail Card
   card: {
-    backgroundColor: COLORS.cardBg,
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 20,
-    elevation: 4,
+    backgroundColor: '#FDF5F7',
+    borderRadius: 12,
+    padding: 10,
+    marginBottom: 8,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
     shadowRadius: 6,
+    elevation: 1,
+    borderWidth: 1,
+    borderColor: '#F5E8EB',
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
-    paddingBottom: 15,
-    borderBottomWidth: 2,
-    borderBottomColor: COLORS.accent,
+    marginBottom: 6,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F5E8EB',
+    gap: 8,
   },
   cardIconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: COLORS.primary + '15',
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: 'rgba(212, 175, 55, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
   },
   cardTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 13,
+    fontWeight: '700',
     color: COLORS.primary,
     flex: 1,
   },
   cardContent: {
-    marginLeft: 5,
+    marginLeft: 4,
   },
   detailRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
+    alignItems: 'flex-start',
+    paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.lightGray,
+    borderBottomColor: '#F5F5F5',
   },
   detailRowLast: {
     borderBottomWidth: 0,
   },
   detailIcon: {
-    width: 40,
+    width: 24,
+    marginRight: 4,
+    marginTop: 2,
   },
   detailLabel: {
-    flex: 1,
-    fontSize: 15,
+    flex: 0.4,
+    fontSize: 12,
     color: COLORS.gray,
     fontWeight: '500',
+    lineHeight: 18,
   },
   detailValue: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: COLORS.primary,
-    marginLeft: 10,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: COLORS.primary,
-    marginBottom: 15,
-    marginTop: 5,
-  },
-  actionButtonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 15,
-  },
-  actionButton: {
-    width: (width - 55) / 3,
-    borderRadius: 15,
-    overflow: 'hidden',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-  },
-  actionButtonGradient: {
-    height: 100,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 10,
-  },
-  actionButtonLabel: {
-    color: COLORS.white,
-    marginTop: 8,
-    fontWeight: '700',
+    flex: 0.6,
     fontSize: 12,
-    textAlign: 'center',
+    fontWeight: '700',
+    color: COLORS.ink,
+    marginLeft: 8,
+    textAlign: 'right',
+    lineHeight: 18,
   },
+
+  // Settings
   settingsCard: {
-    backgroundColor: COLORS.cardBg,
-    borderRadius: 20,
-    padding: 15,
-    marginTop: 10,
-    elevation: 4,
+    backgroundColor: '#FDF5F7',
+    borderRadius: 12,
+    padding: 4,
+    marginTop: 6,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
     shadowRadius: 6,
+    elevation: 1,
+    borderWidth: 1,
+    borderColor: '#F5E8EB',
   },
   settingItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 15,
+    paddingVertical: 10,
     paddingHorizontal: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.lightGray,
   },
   settingIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 28,
+    height: 28,
+    borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 15,
+    marginRight: 12,
   },
   settingLabel: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: '600',
-    color: COLORS.primary,
+    color: COLORS.ink,
+  },
+
+  // Dotted Pattern
+  dottedContainer: {
+    position: 'absolute',
+  },
+  dottedRow: {
+    flexDirection: 'row',
+    marginBottom: 5,
+  },
+  dot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    marginHorizontal: 3,
   },
 });
 

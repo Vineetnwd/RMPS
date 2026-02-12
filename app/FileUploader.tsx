@@ -5,16 +5,15 @@ import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Dimensions,
-    Image,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Dimensions,
+  Image,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 const { width } = Dimensions.get('window');
@@ -31,7 +30,7 @@ const FileUploader = ({
     success: '#4CAF50',
     error: '#F44336',
     warning: '#FF9800',
-    background: '#FFFFFF',
+    background: '#FDF5F7',
     text: '#333333',
   },
   style = {},
@@ -43,15 +42,15 @@ const FileUploader = ({
   const [showPreview, setShowPreview] = useState(false);
   const [uploadStatus, setUploadStatus] = useState(null); // 'success', 'error', or null
   const [statusMessage, setStatusMessage] = useState('');
-  
+
   const abortControllerRef = useRef(null);
-  
+
   const formatFileSize = (bytes) => {
     if (bytes < 1024) return bytes + ' B';
     else if (bytes < 1048576) return (bytes / 1024).toFixed(2) + ' KB';
     else return (bytes / 1048576).toFixed(2) + ' MB';
   };
-  
+
   const requestMediaLibraryPermissions = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
@@ -88,10 +87,10 @@ const FileUploader = ({
       });
 
       if (result.canceled) return null;
-      
+
       const file = result.assets[0];
       const fileInfo = await FileSystem.getInfoAsync(file.uri);
-      
+
       const fileObj = {
         uri: file.uri,
         name: file.name,
@@ -99,10 +98,10 @@ const FileUploader = ({
         size: fileInfo.size || file.size,
         isImage: file.mimeType.startsWith('image/'),
       };
-      
+
       setSelectedFile(fileObj);
       setShowPreview(true);
-      
+
       return file;
     } catch (err) {
       console.error('Error picking document:', err);
@@ -116,19 +115,19 @@ const FileUploader = ({
       setShowOptions(false);
       const hasPermission = await requestMediaLibraryPermissions();
       if (!hasPermission) return null;
-      
+
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
       });
 
       if (result.canceled) return null;
-      
+
       const image = result.assets[0];
       const fileInfo = await FileSystem.getInfoAsync(image.uri);
-      
+
       const fileObj = {
         uri: image.uri,
         name: image.uri.split('/').pop(),
@@ -138,10 +137,10 @@ const FileUploader = ({
         height: image.height,
         isImage: true,
       };
-      
+
       setSelectedFile(fileObj);
       setShowPreview(true);
-      
+
       return image;
     } catch (err) {
       console.error('Error picking image:', err);
@@ -158,18 +157,18 @@ const FileUploader = ({
         showErrorMessage('Camera permissions are needed to take pictures');
         return;
       }
-      
+
       const result = await ImagePicker.launchCameraAsync({
         allowsEditing: true,
-       // aspect: [4, 3],
+        // aspect: [4, 3],
         quality: 0.8,
       });
-      
+
       if (result.canceled) return;
-      
+
       const image = result.assets[0];
       const fileInfo = await FileSystem.getInfoAsync(image.uri);
-      
+
       const fileObj = {
         uri: image.uri,
         name: `photo_${new Date().getTime()}.jpg`,
@@ -179,7 +178,7 @@ const FileUploader = ({
         height: image.height,
         isImage: true,
       };
-      
+
       setSelectedFile(fileObj);
       setShowPreview(true);
     } catch (err) {
@@ -190,23 +189,26 @@ const FileUploader = ({
 
   const processImage = async () => {
     if (!selectedFile || !selectedFile.isImage) return selectedFile;
-    
+
     try {
+      console.log('Processing image:', selectedFile.uri);
       // Resize large images to save bandwidth
       const manipResult = await manipulateAsync(
         selectedFile.uri,
         [{ resize: { width: 1200 } }],
         { compress: 0.8, format: SaveFormat.JPEG }
       );
-      
+
       const fileInfo = await FileSystem.getInfoAsync(manipResult.uri);
-      
+      console.log('Processed image info:', fileInfo);
+
+      const baseName = (selectedFile.name || 'photo').split('.')[0];
       return {
         ...selectedFile,
         uri: manipResult.uri,
-        size: fileInfo.size,
+        size: fileInfo.exists ? fileInfo.size : selectedFile.size,
         type: 'image/jpeg',
-        name: selectedFile.name.split('.')[0] + '.jpg',
+        name: baseName + '.jpg',
       };
     } catch (error) {
       console.error('Error processing image:', error);
@@ -224,112 +226,98 @@ const FileUploader = ({
 
     // Get file extension
     const fileExtension = file.name.split('.').pop().toLowerCase();
-    
+
     // Check file type
     if (!allowedTypes.includes(fileExtension)) {
       showErrorMessage(`Invalid file type. Allowed: ${allowedTypes.join(', ')}`);
       return false;
     }
-    
+
     return true;
   };
 
   const handleUpload = async () => {
     setShowPreview(false);
-    
+
     if (!selectedFile) {
       showErrorMessage('No file selected');
       return;
     }
-    
-    // Process image if needed (resize/compress)
-    const processedFile = selectedFile.isImage ? await processImage() : selectedFile;
-    
-    // Validate file
-    if (!validateFile(processedFile)) {
-      return;
+
+    try {
+      // Process image if needed (resize/compress)
+      const processedFile = selectedFile.isImage ? await processImage() : selectedFile;
+      console.log('File ready for upload:', JSON.stringify(processedFile, null, 2));
+
+      // Validate file
+      if (!validateFile(processedFile)) {
+        return;
+      }
+
+      // All validations passed, proceed to upload
+      await uploadFile(processedFile);
+    } catch (err) {
+      console.error('handleUpload error:', err);
+      showErrorMessage('Failed to prepare file for upload');
     }
-    
-    // All validations passed, proceed to upload
-    uploadFile(processedFile);
   };
 
   const uploadFile = async (file) => {
     try {
       setLoading(true);
       setProgress(0);
-      
-      // Create form data
-      const formData = new FormData();
-      formData.append('file', {
-        uri: Platform.OS === 'ios' ? file.uri.replace('file://', '') : file.uri,
-        name: file.name,
-        type: file.type,
+
+      const fileName = file.name || `upload_${Date.now()}.jpg`;
+      const fileType = file.type || 'application/octet-stream';
+
+      console.log('Uploading file:', { uri: file.uri, name: fileName, type: fileType });
+      console.log('Upload URL:', apiUrl);
+
+      // Simulate progress while uploading
+      const progressInterval = setInterval(() => {
+        setProgress((prev) => Math.min(prev + 0.1, 0.9));
+      }, 300);
+
+      // Use Expo's native uploadAsync for proper multipart upload
+      const response = await FileSystem.uploadAsync(apiUrl, file.uri, {
+        httpMethod: 'POST',
+        uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+        fieldName: 'file',
+        mimeType: fileType,
+        parameters: {},
+        headers: {
+          'Accept': 'application/json',
+        },
       });
 
-      // Setup abort controller for cancellation
-      abortControllerRef.current = new AbortController();
-      const { signal } = abortControllerRef.current;
-      
-      // Upload using XMLHttpRequest to track progress
-      const xhr = new XMLHttpRequest();
-      
-      // Track upload progress
-      xhr.upload.addEventListener('progress', (event) => {
-        if (event.lengthComputable) {
-          const progressValue = event.loaded / event.total;
-          setProgress(progressValue);
-        }
-      });
-      
-      // Promise wrapper for XMLHttpRequest
-      const uploadPromise = new Promise((resolve, reject) => {
-        xhr.onreadystatechange = function() {
-          if (xhr.readyState === 4) {
-            if (xhr.status >= 200 && xhr.status < 300) {
-              try {
-                const response = JSON.parse(xhr.responseText);
-                resolve(response);
-              } catch (e) {
-                reject(new Error('Invalid response from server'));
-              }
-            } else {
-              reject(new Error(`HTTP Error: ${xhr.status}`));
-            }
-          }
-        };
-        
-        xhr.onerror = () => reject(new Error('Network error occurred'));
-        xhr.ontimeout = () => reject(new Error('Upload timed out'));
-      });
-      
-      // Open and send request
-      xhr.open('POST', apiUrl, true);
-      xhr.send(formData);
-      
-      // Setup abort listener
-      signal.addEventListener('abort', () => {
-        xhr.abort();
-      });
-      
-      // Wait for upload to complete
-      const responseData = await uploadPromise;
-      
-      if (responseData.success) {
-        showSuccessMessage(`File uploaded successfully`);
+      clearInterval(progressInterval);
+      setProgress(1);
+
+      console.log('Server raw response:', response.body);
+
+      let responseData;
+      try {
+        responseData = JSON.parse(response.body);
+      } catch (e) {
+        throw new Error('Invalid response from server');
+      }
+
+      if (responseData.success || responseData.status === 'success') {
+        showSuccessMessage('File uploaded successfully');
         if (onUploadSuccess) onUploadSuccess(responseData);
       } else {
-        showErrorMessage(responseData.error || "Upload failed");
-        if (onUploadError) onUploadError(responseData.error);
+        console.error('Server upload response (not success):', JSON.stringify(responseData));
+        showErrorMessage(responseData.error || responseData.message || 'Upload failed');
+        if (onUploadError) onUploadError(responseData.error || responseData.message || 'Upload failed');
       }
     } catch (error) {
-      console.error('Upload error:', error);
-      showErrorMessage(error.message || "An unexpected error occurred");
-      if (onUploadError) onUploadError(error.message || "An unexpected error occurred");
+      console.error('Upload error details:', error);
+      const errMsg = error instanceof Error ? error.message : 'An unexpected error occurred';
+      showErrorMessage(errMsg);
+      if (onUploadError) onUploadError(errMsg);
     } finally {
       setLoading(false);
       setProgress(0);
-      abortControllerRef.current = null;
     }
   };
 
@@ -346,10 +334,10 @@ const FileUploader = ({
   // Render file icon based on file type
   const renderFileIcon = () => {
     if (!selectedFile) return null;
-    
+
     if (selectedFile.isImage) {
       return (
-        <Image 
+        <Image
           source={{ uri: selectedFile.uri }}
           style={styles.previewImage}
           resizeMode="contain"
@@ -358,7 +346,7 @@ const FileUploader = ({
     } else {
       // PDF or other document
       const extension = selectedFile.name.split('.').pop().toLowerCase();
-      
+
       if (extension === 'pdf') {
         return (
           <View style={styles.fileIconContainer}>
@@ -378,7 +366,7 @@ const FileUploader = ({
   return (
     <View style={[styles.container, style]}>
       {/* Main upload button */}
-      <TouchableOpacity 
+      <TouchableOpacity
         style={[styles.button, { backgroundColor: theme.primary }]}
         onPress={() => setShowOptions(true)}
         disabled={loading}
@@ -392,19 +380,19 @@ const FileUploader = ({
           </>
         )}
       </TouchableOpacity>
-      
+
       {/* Upload progress */}
       {loading && (
         <View style={styles.progressSection}>
           <View style={styles.progressBarContainer}>
-            <View 
+            <View
               style={[
-                styles.progressBar, 
-                { 
+                styles.progressBar,
+                {
                   width: `${progress * 100}%`,
-                  backgroundColor: theme.primary 
+                  backgroundColor: theme.primary
                 }
-              ]} 
+              ]}
             />
           </View>
           <View style={styles.progressDetails}>
@@ -415,29 +403,29 @@ const FileUploader = ({
           </View>
         </View>
       )}
-      
+
       {/* Status message */}
       {uploadStatus && (
         <View style={[
-          styles.statusContainer, 
-          { 
-            backgroundColor: uploadStatus === 'success' 
-              ? `${theme.success}15` 
+          styles.statusContainer,
+          {
+            backgroundColor: uploadStatus === 'success'
+              ? `${theme.success}15`
               : `${theme.error}15`,
-            borderColor: uploadStatus === 'success' 
-              ? theme.success 
+            borderColor: uploadStatus === 'success'
+              ? theme.success
               : theme.error,
           }
         ]}>
-          <Ionicons 
-            name={uploadStatus === 'success' ? 'checkmark-circle' : 'alert-circle'} 
-            size={22} 
-            color={uploadStatus === 'success' ? theme.success : theme.error} 
+          <Ionicons
+            name={uploadStatus === 'success' ? 'checkmark-circle' : 'alert-circle'}
+            size={22}
+            color={uploadStatus === 'success' ? theme.success : theme.error}
           />
           <Text style={styles.statusText}>{statusMessage}</Text>
         </View>
       )}
-      
+
       {/* File options modal */}
       <Modal
         visible={showOptions}
@@ -445,7 +433,7 @@ const FileUploader = ({
         animationType="slide"
         onRequestClose={() => setShowOptions(false)}
       >
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.modalOverlay}
           activeOpacity={1}
           onPress={() => setShowOptions(false)}
@@ -453,7 +441,7 @@ const FileUploader = ({
           <View style={styles.optionsContainer}>
             <View style={styles.optionsHandle} />
             <Text style={styles.optionsTitle}>Upload File</Text>
-            
+
             <TouchableOpacity style={styles.optionButton} onPress={pickDocument}>
               <View style={[styles.optionIconBg, { backgroundColor: `${theme.primary}15` }]}>
                 <Ionicons name="document-text" size={24} color={theme.primary} />
@@ -464,7 +452,7 @@ const FileUploader = ({
               </View>
               <Ionicons name="chevron-forward" size={22} color="#BBBBBB" />
             </TouchableOpacity>
-            
+
             <TouchableOpacity style={styles.optionButton} onPress={pickImage}>
               <View style={[styles.optionIconBg, { backgroundColor: `${theme.success}15` }]}>
                 <Ionicons name="images" size={24} color={theme.success} />
@@ -475,7 +463,7 @@ const FileUploader = ({
               </View>
               <Ionicons name="chevron-forward" size={22} color="#BBBBBB" />
             </TouchableOpacity>
-            
+
             <TouchableOpacity style={styles.optionButton} onPress={takePicture}>
               <View style={[styles.optionIconBg, { backgroundColor: `${theme.warning}15` }]}>
                 <Ionicons name="camera" size={24} color={theme.warning} />
@@ -486,9 +474,9 @@ const FileUploader = ({
               </View>
               <Ionicons name="chevron-forward" size={22} color="#BBBBBB" />
             </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.cancelButton} 
+
+            <TouchableOpacity
+              style={styles.cancelButton}
               onPress={() => setShowOptions(false)}
             >
               <Text style={styles.cancelButtonText}>Cancel</Text>
@@ -496,7 +484,7 @@ const FileUploader = ({
           </View>
         </TouchableOpacity>
       </Modal>
-      
+
       {/* File preview modal */}
       <Modal
         visible={showPreview}
@@ -511,10 +499,10 @@ const FileUploader = ({
               <Ionicons name="close" size={24} color={theme.text} />
             </TouchableOpacity>
           </View>
-          
+
           <ScrollView style={styles.previewContent}>
             {renderFileIcon()}
-            
+
             {selectedFile && (
               <View style={styles.fileInfoContainer}>
                 <Text style={styles.fileName}>{selectedFile.name}</Text>
@@ -524,10 +512,10 @@ const FileUploader = ({
               </View>
             )}
           </ScrollView>
-          
+
           <View style={styles.previewActions}>
-            <TouchableOpacity 
-              style={[styles.previewButton, { backgroundColor: theme.error }]} 
+            <TouchableOpacity
+              style={[styles.previewButton, { backgroundColor: theme.error }]}
               onPress={() => {
                 setShowPreview(false);
                 setSelectedFile(null);
@@ -535,9 +523,9 @@ const FileUploader = ({
             >
               <Text style={styles.previewButtonText}>Cancel</Text>
             </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.previewButton, { backgroundColor: theme.primary }]} 
+
+            <TouchableOpacity
+              style={[styles.previewButton, { backgroundColor: theme.primary }]}
               onPress={handleUpload}
             >
               <Text style={styles.previewButtonText}>Upload</Text>
@@ -557,10 +545,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
+    paddingVertical: 10,
     paddingHorizontal: 24,
     borderRadius: 8,
-    elevation: 2,
+    elevation: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
@@ -569,14 +557,14 @@ const styles = StyleSheet.create({
   buttonText: {
     color: 'white',
     fontWeight: '600',
-    fontSize: 16,
+    fontSize: 12,
   },
   buttonIcon: {
     marginLeft: 8,
   },
   // Progress section
   progressSection: {
-    marginTop: 16,
+    marginTop: 10,
     width: '100%',
   },
   progressBarContainer: {
@@ -607,8 +595,8 @@ const styles = StyleSheet.create({
   statusContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 16,
-    padding: 12,
+    marginTop: 10,
+    padding: 10,
     borderRadius: 8,
     borderWidth: 1,
     borderLeftWidth: 4,
@@ -616,7 +604,7 @@ const styles = StyleSheet.create({
   statusText: {
     flex: 1,
     marginLeft: 10,
-    fontSize: 14,
+    fontSize: 12,
     color: '#333333',
   },
   // Modal styles
@@ -629,11 +617,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    padding: 20,
+    padding: 10,
     paddingTop: 15,
   },
   optionsHandle: {
-    width: 40,
+    width: 26,
     height: 4,
     backgroundColor: '#E0E0E0',
     borderRadius: 2,
@@ -641,9 +629,9 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   optionsTitle: {
-    fontSize: 18,
+    fontSize: 12,
     fontWeight: 'bold',
-    marginBottom: 20,
+    marginBottom: 8,
     textAlign: 'center',
     color: '#333',
   },
@@ -655,8 +643,8 @@ const styles = StyleSheet.create({
     borderBottomColor: '#F0F0F0',
   },
   optionIconBg: {
-    width: 48,
-    height: 48,
+    width: 26,
+    height: 26,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
@@ -666,50 +654,50 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   optionText: {
-    fontSize: 16,
+    fontSize: 12,
     color: '#333',
     fontWeight: '500',
   },
   optionSubtext: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#888',
     marginTop: 2,
   },
   cancelButton: {
-    marginTop: 20,
-    padding: 16,
+    marginTop: 10,
+    padding: 10,
     borderRadius: 8,
     backgroundColor: '#F5F5F5',
     alignItems: 'center',
   },
   cancelButtonText: {
-    fontSize: 16,
+    fontSize: 12,
     color: '#666',
     fontWeight: '500',
   },
   // Preview modal
   previewContainer: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FDF5F7',
   },
   previewHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    paddingHorizontal: 14,
     paddingTop: 16,
     paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#EEEEEE',
   },
   previewTitle: {
-    fontSize: 18,
+    fontSize: 12,
     fontWeight: 'bold',
     color: '#333',
   },
   previewContent: {
     flex: 1,
-    padding: 20,
+    padding: 10,
   },
   previewImage: {
     width: '100%',
@@ -724,33 +712,33 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#F9F9F9',
     borderRadius: 8,
-    marginBottom: 16,
+    marginBottom: 10,
   },
   fileInfoContainer: {
-    marginTop: 20,
-    padding: 16,
+    marginTop: 10,
+    padding: 10,
     backgroundColor: '#F9F9F9',
     borderRadius: 8,
   },
   fileName: {
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: '600',
     color: '#333',
     marginBottom: 8,
   },
   fileInfo: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#666',
   },
   previewActions: {
     flexDirection: 'row',
     borderTopWidth: 1,
     borderTopColor: '#EEEEEE',
-    padding: 16,
+    padding: 10,
   },
   previewButton: {
     flex: 1,
-    padding: 14,
+    padding: 10,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
@@ -759,7 +747,7 @@ const styles = StyleSheet.create({
   previewButtonText: {
     color: 'white',
     fontWeight: '600',
-    fontSize: 16,
+    fontSize: 12,
   },
 });
 

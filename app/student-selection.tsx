@@ -30,7 +30,7 @@ const COLORS = {
   error: '#DC2626',
   success: '#10B981',
   background: '#7A0C2E',
-  cream: '#FFF8E7',
+  cream: '#FFF5EC',
   cardBg: '#FFFFFF',
 };
 
@@ -74,9 +74,9 @@ const DottedPattern = ({ style, rows = 3, cols = 5, dotColor = COLORS.secondary 
             key={colIndex}
             style={[
               styles.dot,
-              { 
+              {
                 backgroundColor: dotColor,
-                opacity: 0.2 + (rowIndex * cols + colIndex) * 0.03 
+                opacity: 0.2 + (rowIndex * cols + colIndex) * 0.03
               },
             ]}
           />
@@ -86,12 +86,25 @@ const DottedPattern = ({ style, rows = 3, cols = 5, dotColor = COLORS.secondary 
   </View>
 );
 
+const BRANCH_PHOTO_FOLDER: Record<string, string> = {
+  '1': 'Bishambharpur',
+  '2': 'Barauli',
+  '4': 'Barharia',
+};
+
+const getStudentPhotoUrl = (branchId: string | number, studentAdmission: string) => {
+  if (!branchId) return null;
+  const folder = BRANCH_PHOTO_FOLDER[branchId.toString()];
+  if (!folder) return null;
+  return `https://rmpublicschool.org/binex/student_photo/${folder}/Photo/${studentAdmission}.jpg`;
+};
+
 export default function StudentSelectionScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const [students, setStudents] = useState([]);
   const [notices, setNotices] = useState([]);
-  
+
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   const floatAnim = useRef(new Animated.Value(0)).current;
@@ -233,7 +246,7 @@ export default function StudentSelectionScreen() {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
-      
+
       {/* Background Decorations */}
       <View style={styles.backgroundVectors} pointerEvents="none">
         <Animated.View
@@ -248,7 +261,7 @@ export default function StudentSelectionScreen() {
             { transform: [{ scale: pulseAnim }] },
           ]}
         />
-        
+
         <View style={styles.vectorStripe1} />
         <View style={styles.vectorStripe2} />
 
@@ -283,10 +296,10 @@ export default function StudentSelectionScreen() {
         </View>
       </View>
 
-      <Animated.View 
+      <Animated.View
         style={[
-          styles.content, 
-          { 
+          styles.content,
+          {
             opacity: fadeAnim,
             transform: [{ translateY: slideAnim }],
           }
@@ -304,22 +317,22 @@ export default function StudentSelectionScreen() {
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.iconWrapper}>
-            <Animated.View 
+            <Animated.View
               style={[
                 styles.iconGlow,
                 { transform: [{ scale: pulseAnim }] }
-              ]} 
+              ]}
             />
             <View style={styles.headerIconContainer}>
               <Ionicons name="people" size={40} color={COLORS.primary} />
             </View>
           </View>
-          
+
           <Text style={styles.title}>Select Student</Text>
           <Text style={styles.subtitle}>
             Choose a profile to continue
           </Text>
-          
+
           <View style={styles.countBadge}>
             <Ionicons name="school" size={14} color={COLORS.secondary} />
             <Text style={styles.countBadgeText}>
@@ -412,10 +425,10 @@ function StudentCard({ student, index, fadeAnim, onSelect }) {
             {/* Avatar */}
             <View style={styles.avatarContainer}>
               <View style={styles.avatarGlow} />
-              {student.student_photo !== 'no_image.jpg' ? (
+              {student.student_photo !== 'no_image.jpg' && getStudentPhotoUrl(student.branch_id, student.student_admission) ? (
                 <Image
                   source={{
-                    uri: `https://rmpublicschool.org/binex/upload/${student.student_photo}`,
+                    uri: getStudentPhotoUrl(student.branch_id, student.student_admission) || '',
                   }}
                   style={styles.avatar}
                 />
@@ -450,7 +463,7 @@ function StudentCard({ student, index, fadeAnim, onSelect }) {
               <Text style={styles.studentName} numberOfLines={1}>
                 {student.student_name}
               </Text>
-              
+
               <View style={styles.detailRow}>
                 <View style={styles.detailIconContainer}>
                   <Ionicons name="school" size={12} color={COLORS.secondary} />
@@ -459,7 +472,7 @@ function StudentCard({ student, index, fadeAnim, onSelect }) {
                   Class {student.student_class} - Section {student.student_section}
                 </Text>
               </View>
-              
+
               <View style={styles.detailRow}>
                 <View style={styles.detailIconContainer}>
                   <Ionicons name="id-card" size={12} color={COLORS.secondary} />
@@ -468,7 +481,7 @@ function StudentCard({ student, index, fadeAnim, onSelect }) {
                   Roll: {student.student_roll} | Adm: {student.student_admission}
                 </Text>
               </View>
-              
+
               <View style={styles.detailRow}>
                 <View style={styles.detailIconContainer}>
                   <Ionicons name="bus" size={12} color={COLORS.secondary} />
@@ -477,7 +490,7 @@ function StudentCard({ student, index, fadeAnim, onSelect }) {
                   {student.student_type}
                 </Text>
               </View>
-              
+
               {/* Payment Info */}
               {/* <View style={styles.paymentInfo}>
                 <View style={styles.paymentItem}>
@@ -524,7 +537,7 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingTop: 50,
+    paddingTop: 30,
   },
 
   // Background Decorations
@@ -553,8 +566,8 @@ const styles = StyleSheet.create({
     top: 200,
     right: -50,
     width: 200,
-    height: 40,
-    borderRadius: 20,
+    height: 26,
+    borderRadius: 12,
     backgroundColor: COLORS.secondary,
     opacity: 0.08,
     transform: [{ rotate: '-20deg' }],
@@ -659,7 +672,7 @@ const styles = StyleSheet.create({
   },
   lineAccent2: {
     position: 'absolute',
-    width: 50,
+    width: 40,
     height: 2,
     borderRadius: 1,
     backgroundColor: COLORS.white,
@@ -697,14 +710,14 @@ const styles = StyleSheet.create({
 
   // Back Button
   backButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
+    width: 26,
+    height: 26,
+    borderRadius: 12,
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 20,
-    marginBottom: 20,
+    marginBottom: 8,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
   },
@@ -712,17 +725,17 @@ const styles = StyleSheet.create({
   // Header
   header: {
     paddingHorizontal: 24,
-    marginBottom: 24,
+    marginBottom: 10,
     alignItems: 'center',
   },
   iconWrapper: {
     position: 'relative',
-    marginBottom: 16,
+    marginBottom: 10,
   },
   iconGlow: {
     position: 'absolute',
-    width: 100,
-    height: 100,
+    width: 70,
+    height: 70,
     borderRadius: 50,
     backgroundColor: COLORS.secondary,
     opacity: 0.2,
@@ -741,7 +754,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 20,
     elevation: 15,
-    borderWidth: 3,
+    borderWidth: 2,
     borderColor: 'rgba(212, 175, 55, 0.3)',
   },
   title: {
@@ -752,15 +765,15 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   subtitle: {
-    fontSize: 15,
+    fontSize: 12,
     color: 'rgba(255, 255, 255, 0.85)',
-    marginBottom: 16,
+    marginBottom: 10,
   },
   countBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(212, 175, 55, 0.2)',
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 25,
     gap: 8,
@@ -769,7 +782,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   countBadgeText: {
-    fontSize: 14,
+    fontSize: 12,
     color: COLORS.white,
     fontWeight: '700',
   },
@@ -779,14 +792,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.12)',
     paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 20,
+    borderRadius: 12,
     gap: 8,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   noticesBadgeIcon: {
-    width: 24,
-    height: 24,
+    width: 18,
+    height: 18,
     borderRadius: 12,
     backgroundColor: 'rgba(212, 175, 55, 0.2)',
     justifyContent: 'center',
@@ -803,14 +816,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 14,
     paddingBottom: 40,
   },
 
   // Student Card
   studentCard: {
-    marginBottom: 16,
-    borderRadius: 22,
+    marginBottom: 10,
+    borderRadius: 12,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
@@ -819,8 +832,8 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   cardTouchable: {
-    backgroundColor: COLORS.cardBg,
-    borderRadius: 22,
+    backgroundColor: '#FDF5F7',
+    borderRadius: 12,
     overflow: 'hidden',
   },
   cardPressed: {
@@ -833,7 +846,7 @@ const styles = StyleSheet.create({
   cardContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 18,
+    padding: 10,
   },
   studentInfo: {
     flex: 1,
@@ -857,17 +870,17 @@ const styles = StyleSheet.create({
   avatar: {
     width: 74,
     height: 74,
-    borderRadius: 22,
-    borderWidth: 3,
+    borderRadius: 12,
+    borderWidth: 2,
     borderColor: COLORS.secondary,
   },
   avatarPlaceholder: {
     width: 74,
     height: 74,
-    borderRadius: 22,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 3,
+    borderWidth: 2,
     borderColor: 'rgba(212, 175, 55, 0.3)',
   },
   classBadge: {
@@ -884,7 +897,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
-    elevation: 4,
+    elevation: 1,
   },
   classBadgeText: {
     fontSize: 12,
@@ -895,7 +908,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   studentName: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: '800',
     color: COLORS.ink,
     marginBottom: 10,
@@ -924,9 +937,9 @@ const styles = StyleSheet.create({
   paymentInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.cream,
-    borderRadius: 14,
-    padding: 12,
+    backgroundColor: '#FFF9F0',
+    borderRadius: 10,
+    padding: 10,
     marginTop: 12,
     borderWidth: 1,
     borderColor: 'rgba(212, 175, 55, 0.2)',
@@ -940,7 +953,7 @@ const styles = StyleSheet.create({
   paymentIconContainer: {
     width: 28,
     height: 28,
-    borderRadius: 14,
+    borderRadius: 10,
     backgroundColor: COLORS.white,
     justifyContent: 'center',
     alignItems: 'center',
@@ -953,25 +966,25 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   paymentValuePaid: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '800',
     color: COLORS.success,
   },
   paymentValueDue: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '800',
     color: COLORS.error,
   },
   paymentDivider: {
     width: 1,
-    height: 36,
+    height: 28,
     backgroundColor: 'rgba(212, 175, 55, 0.3)',
     marginHorizontal: 12,
   },
   arrowContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    width: 28,
+    height: 28,
+    borderRadius: 10,
     backgroundColor: COLORS.primary,
     justifyContent: 'center',
     alignItems: 'center',
@@ -980,7 +993,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 5,
+    elevation: 1,
   },
 
   // Help Section
@@ -989,24 +1002,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 20,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 16,
+    borderRadius: 12,
     marginTop: 10,
-    gap: 10,
+    gap: 6,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   helpIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 26,
+    height: 26,
+    borderRadius: 12,
     backgroundColor: 'rgba(212, 175, 55, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   helpText: {
-    fontSize: 13,
+    fontSize: 12,
     color: 'rgba(255, 255, 255, 0.8)',
     fontWeight: '500',
     flex: 1,

@@ -2,14 +2,15 @@
   "expo": {
     "name": "RMPS",
     "slug": "RMPS",
-    "version": "1.0.0",
+    "version": "13.0.3",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "rmps",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.offerplant.rmpschool"
     },
     "android": {
       "adaptiveIcon": {
@@ -19,7 +20,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.offerplant.rmpschool"
     },
     "web": {
       "output": "static",

@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import * as Print from "expo-print";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Sharing from "expo-sharing";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -36,8 +36,8 @@ const COLORS = {
   error: '#DC2626',
   success: '#10B981',
   warning: '#F59E0B',
-  background: '#F8FAFC',
-  cream: '#FFF8E7',
+  background: '#FDF5F7',
+  cream: '#FFF5EC',
   cardBg: '#FFFFFF',
 };
 
@@ -81,8 +81,13 @@ const MONTH_OPTIONS = [
 
 export default function DuesListScreen() {
   const router = useRouter();
-  const [selectedClass, setSelectedClass] = useState("I");
-  const [selectedSection, setSelectedSection] = useState("A");
+  const params = useLocalSearchParams<{ ct_class?: string; ct_section?: string; branch_id?: string }>();
+
+  // If ct_class & ct_section are passed, lock the teacher to their assigned class
+  const isClassLocked = !!(params.ct_class && params.ct_section);
+
+  const [selectedClass, setSelectedClass] = useState(params.ct_class || "I");
+  const [selectedSection, setSelectedSection] = useState(params.ct_section || "A");
   const [selectedMonths, setSelectedMonths] = useState([new Date().toLocaleString('en-US', { month: 'long' })]);
   const [showClassModal, setShowClassModal] = useState(false);
   const [showSectionModal, setShowSectionModal] = useState(false);
@@ -277,8 +282,8 @@ export default function DuesListScreen() {
           <>
             <View style={styles.selectionBar}>
               <View style={styles.selectionRow}>
-                <TouchableOpacity style={styles.selector} onPress={() => setShowClassModal(true)}><View style={styles.selectorLabelContainer}><Ionicons name="school" size={12} color={COLORS.secondary} /><Text style={styles.selectorLabel}>Class</Text></View><View style={styles.selectorValue}><Text style={styles.selectedValueText}>{selectedClass}</Text><Ionicons name="chevron-down" size={14} color={COLORS.gray} /></View></TouchableOpacity>
-                <TouchableOpacity style={styles.selector} onPress={() => setShowSectionModal(true)}><View style={styles.selectorLabelContainer}><Ionicons name="grid" size={12} color={COLORS.secondary} /><Text style={styles.selectorLabel}>Section</Text></View><View style={styles.selectorValue}><Text style={styles.selectedValueText}>{selectedSection}</Text><Ionicons name="chevron-down" size={14} color={COLORS.gray} /></View></TouchableOpacity>
+                <TouchableOpacity style={[styles.selector, isClassLocked && { opacity: 0.7 }]} onPress={() => !isClassLocked && setShowClassModal(true)} activeOpacity={isClassLocked ? 1 : 0.7}><View style={styles.selectorLabelContainer}><Ionicons name={isClassLocked ? 'lock-closed' : 'school'} size={12} color={isClassLocked ? COLORS.primary : COLORS.secondary} /><Text style={styles.selectorLabel}>Class</Text></View><View style={styles.selectorValue}><Text style={styles.selectedValueText}>{selectedClass}</Text>{!isClassLocked && <Ionicons name="chevron-down" size={14} color={COLORS.gray} />}</View></TouchableOpacity>
+                <TouchableOpacity style={[styles.selector, isClassLocked && { opacity: 0.7 }]} onPress={() => !isClassLocked && setShowSectionModal(true)} activeOpacity={isClassLocked ? 1 : 0.7}><View style={styles.selectorLabelContainer}><Ionicons name={isClassLocked ? 'lock-closed' : 'grid'} size={12} color={isClassLocked ? COLORS.primary : COLORS.secondary} /><Text style={styles.selectorLabel}>Section</Text></View><View style={styles.selectorValue}><Text style={styles.selectedValueText}>{selectedSection}</Text>{!isClassLocked && <Ionicons name="chevron-down" size={14} color={COLORS.gray} />}</View></TouchableOpacity>
               </View>
               <TouchableOpacity style={styles.monthSelector} onPress={() => setShowMonthsModal(true)}><View style={styles.selectorLabelContainer}><Ionicons name="calendar" size={12} color={COLORS.secondary} /><Text style={styles.selectorLabel}>Selected Months</Text></View><View style={styles.selectedMonthsContainer}>{selectedMonths.map((month) => (<View key={month} style={styles.monthChip}><Text style={styles.monthChipText}>{month}</Text></View>))}<Ionicons name="create" size={14} color={COLORS.gray} style={styles.editIcon} /></View></TouchableOpacity>
             </View>
@@ -324,101 +329,101 @@ export default function DuesListScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  header: { backgroundColor: COLORS.primary, paddingTop: 10, paddingBottom: 20, borderBottomLeftRadius: 28, borderBottomRightRadius: 28, overflow: 'hidden' },
+  container: { flex: 1, backgroundColor: '#FDF5F7' },
+  header: { backgroundColor: COLORS.primary, paddingTop: 10, paddingBottom: 10, borderBottomLeftRadius: 20, borderBottomRightRadius: 20, overflow: 'hidden' },
   headerDecorations: { ...StyleSheet.absoluteFillObject },
-  headerBlob: { position: 'absolute', width: 140, height: 140, borderRadius: 70, backgroundColor: COLORS.secondary, opacity: 0.12, top: -40, right: -50 },
+  headerBlob: { position: 'absolute', width: 100, height: 100, borderRadius: 50, backgroundColor: COLORS.secondary, opacity: 0.12, top: -40, right: -50 },
   headerRing: { position: 'absolute', top: 30, left: -30 },
   headerDiamond1: { position: 'absolute', top: 80, right: 60 },
   headerDiamond2: { position: 'absolute', top: 120, right: 100 },
   headerDots: { position: 'absolute', bottom: 60, left: 30 },
   headerContent: { paddingHorizontal: 20 },
   headerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
-  backButton: { width: 44, height: 44, borderRadius: 14, backgroundColor: 'rgba(255, 255, 255, 0.15)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)' },
-  headerButton: { width: 44, height: 44, borderRadius: 14, backgroundColor: 'rgba(255, 255, 255, 0.15)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)' },
+  backButton: { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255, 255, 255, 0.15)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)' },
+  headerButton: { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255, 255, 255, 0.15)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)' },
   headerTitleContainer: { flex: 1, alignItems: 'center' },
-  headerTitle: { fontSize: 20, fontWeight: '800', color: COLORS.white, letterSpacing: 0.3 },
+  headerTitle: { fontSize: 15, fontWeight: '800', color: COLORS.white, letterSpacing: 0.3 },
   headerSubtitle: { fontSize: 12, color: 'rgba(255, 255, 255, 0.8)', marginTop: 2, fontWeight: '500' },
-  infoCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.cardBg, padding: 16, borderRadius: 16, gap: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 4 },
-  infoIconContainer: { width: 48, height: 48, borderRadius: 14, backgroundColor: 'rgba(212, 175, 55, 0.15)', justifyContent: 'center', alignItems: 'center' },
-  infoText: { flex: 1, fontSize: 13, color: COLORS.gray, lineHeight: 20 },
-  filterToggleContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.cardBg, paddingHorizontal: 20, paddingVertical: 14, marginHorizontal: 20, marginTop: 16, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(0, 0, 0, 0.04)', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2 },
+  infoCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FDF5F7', padding: 10, borderRadius: 12, gap: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.03, shadowRadius: 8, elevation: 4 },
+  infoIconContainer: { width: 40, height: 40, borderRadius: 10, backgroundColor: 'rgba(212, 175, 55, 0.15)', justifyContent: 'center', alignItems: 'center' },
+  infoText: { flex: 1, fontSize: 12, color: COLORS.gray, lineHeight: 20 },
+  filterToggleContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FDF5F7', paddingHorizontal: 14, paddingVertical: 10, marginHorizontal: 20, marginTop: 10, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(0, 0, 0, 0.04)', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 6, elevation: 2 },
   selectedInfoContainer: { flex: 1 },
-  selectedInfoText: { fontSize: 14, color: COLORS.ink, fontWeight: '600' },
-  filterToggleButton: { width: 32, height: 32, borderRadius: 10, backgroundColor: COLORS.cream, justifyContent: 'center', alignItems: 'center' },
-  selectionBar: { backgroundColor: COLORS.cardBg, padding: 16, marginHorizontal: 20, marginTop: 12, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0, 0, 0, 0.04)', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2 },
+  selectedInfoText: { fontSize: 12, color: COLORS.ink, fontWeight: '600' },
+  filterToggleButton: { width: 32, height: 32, borderRadius: 10, backgroundColor: '#FFF9F0', justifyContent: 'center', alignItems: 'center' },
+  selectionBar: { backgroundColor: '#FDF5F7', padding: 10, marginHorizontal: 20, marginTop: 12, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(0, 0, 0, 0.04)', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 6, elevation: 2 },
   selectionRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12, gap: 12 },
   selector: { flex: 1 },
   selectorLabelContainer: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
   selectorLabel: { fontSize: 12, color: COLORS.gray, fontWeight: '600' },
-  selectorValue: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: COLORS.cream, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1, borderColor: 'rgba(0, 0, 0, 0.04)' },
-  selectedValueText: { fontSize: 14, fontWeight: '700', color: COLORS.ink },
+  selectorValue: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FFF9F0', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: 'rgba(0, 0, 0, 0.04)' },
+  selectedValueText: { fontSize: 12, fontWeight: '700', color: COLORS.ink },
   monthSelector: { marginTop: 4 },
-  selectedMonthsContainer: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', backgroundColor: COLORS.cream, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: 'rgba(0, 0, 0, 0.04)', gap: 8 },
-  monthChip: { backgroundColor: COLORS.primary, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
+  selectedMonthsContainer: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', backgroundColor: '#FFF9F0', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: 'rgba(0, 0, 0, 0.04)', gap: 8 },
+  monthChip: { backgroundColor: COLORS.primary, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 6 },
   monthChipText: { color: COLORS.white, fontSize: 12, fontWeight: '600' },
   editIcon: { marginLeft: 'auto' },
-  summaryContainer: { flexDirection: 'row', paddingHorizontal: 20, marginTop: 12, gap: 10 },
-  summaryCard: { flex: 1, backgroundColor: COLORS.cardBg, borderRadius: 14, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(0, 0, 0, 0.04)', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2 },
+  summaryContainer: { flexDirection: 'row', paddingHorizontal: 14, marginTop: 12, gap: 10 },
+  summaryCard: { flex: 1, backgroundColor: '#FDF5F7', borderRadius: 10, padding: 10, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(0, 0, 0, 0.04)', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 6, elevation: 2 },
   studentsCard: { borderLeftWidth: 3, borderLeftColor: COLORS.primary },
   duesCard2: { borderLeftWidth: 3, borderLeftColor: COLORS.error },
   avgCard: { borderLeftWidth: 3, borderLeftColor: COLORS.success },
   summaryIconContainer: { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(212, 175, 55, 0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
-  summaryValue: { fontSize: 13, fontWeight: '800', color: COLORS.ink, marginBottom: 2 },
+  summaryValue: { fontSize: 14, fontWeight: '800', color: COLORS.ink, marginBottom: 2 },
   summaryLabel: { fontSize: 10, color: COLORS.gray, fontWeight: '600' },
-  searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.cardBg, marginHorizontal: 20, marginTop: 16, marginBottom: 12, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 12, borderWidth: 1, borderColor: 'rgba(0, 0, 0, 0.04)', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2 },
+  searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FDF5F7', marginHorizontal: 20, marginTop: 10, marginBottom: 12, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: 'rgba(0, 0, 0, 0.04)', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 6, elevation: 2 },
   searchIconContainer: { marginRight: 12 },
-  searchInput: { flex: 1, fontSize: 14, color: COLORS.ink },
+  searchInput: { flex: 1, fontSize: 12, color: COLORS.ink },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { marginTop: 12, fontSize: 14, color: COLORS.gray, fontWeight: '500' },
+  loadingText: { marginTop: 12, fontSize: 12, color: COLORS.gray, fontWeight: '500' },
   errorContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
-  errorTitle: { fontSize: 18, fontWeight: '700', color: COLORS.ink, marginTop: 16, marginBottom: 8 },
-  errorMessage: { fontSize: 14, color: COLORS.gray, textAlign: 'center', marginBottom: 24 },
-  retryButton: { backgroundColor: COLORS.primary, paddingVertical: 14, paddingHorizontal: 28, borderRadius: 14, borderWidth: 2, borderColor: COLORS.secondary },
+  errorTitle: { fontSize: 14, fontWeight: '700', color: COLORS.ink, marginTop: 10, marginBottom: 8 },
+  errorMessage: { fontSize: 12, color: COLORS.gray, textAlign: 'center', marginBottom: 24 },
+  retryButton: { backgroundColor: COLORS.primary, paddingVertical: 10, paddingHorizontal: 28, borderRadius: 10, borderWidth: 2, borderColor: COLORS.secondary },
   retryText: { color: COLORS.white, fontWeight: '700', fontSize: 14 },
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 },
   emptyIconContainer: { width: 100, height: 100, borderRadius: 30, backgroundColor: 'rgba(212, 175, 55, 0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: COLORS.ink, marginBottom: 8 },
-  emptyText: { fontSize: 14, color: COLORS.gray, textAlign: 'center' },
-  listContainer: { padding: 20, paddingTop: 8 },
-  duesCard: { backgroundColor: COLORS.cardBg, borderRadius: 18, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(0, 0, 0, 0.04)', shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 3, overflow: 'hidden' },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: COLORS.lightGray },
-  studentInfoHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
+  emptyTitle: { fontSize: 12, fontWeight: '700', color: COLORS.ink, marginBottom: 8 },
+  emptyText: { fontSize: 12, color: COLORS.gray, textAlign: 'center' },
+  listContainer: { padding: 10, paddingTop: 8 },
+  duesCard: { backgroundColor: '#FDF5F7', borderRadius: 10, marginBottom: 8, borderWidth: 1, borderColor: 'rgba(0, 0, 0, 0.04)', shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.03, shadowRadius: 8, elevation: 1, overflow: 'hidden' },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 10, borderBottomWidth: 1, borderBottomColor: COLORS.lightGray },
+  studentInfoHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 },
   studentIconContainer: { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(122, 12, 46, 0.1)', justifyContent: 'center', alignItems: 'center' },
-  studentName: { fontSize: 16, fontWeight: '700', color: COLORS.ink, flex: 1 },
+  studentName: { fontSize: 14, fontWeight: '700', color: COLORS.ink, flex: 1 },
   amountContainer: { alignItems: 'flex-end' },
   amountLabel: { fontSize: 10, color: COLORS.gray, marginBottom: 2, fontWeight: '500' },
-  totalAmount: { fontSize: 18, fontWeight: '800', color: COLORS.error },
+  totalAmount: { fontSize: 14, fontWeight: '800', color: COLORS.error },
   cardDetails: { padding: 16 },
   detailRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 16 },
   detailItem: { flex: 1, gap: 4 },
   detailLabel: { fontSize: 11, color: COLORS.gray, fontWeight: '500' },
-  detailValue: { fontSize: 14, color: COLORS.ink, fontWeight: '600' },
+  detailValue: { fontSize: 12, color: COLORS.ink, fontWeight: '600' },
   divider: { height: 1, backgroundColor: COLORS.lightGray, marginVertical: 14 },
   feesSection: { gap: 10 },
   feeRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  feeLabel: { fontSize: 13, color: COLORS.gray },
-  feeValue: { fontSize: 13, color: COLORS.ink, fontWeight: '600' },
+  feeLabel: { fontSize: 12, color: COLORS.gray },
+  feeValue: { fontSize: 12, color: COLORS.ink, fontWeight: '600' },
   previousDue: { color: COLORS.error },
   currentFeeRow: { marginTop: 6, paddingTop: 10, borderTopWidth: 1, borderTopColor: COLORS.lightGray },
-  currentFeeLabel: { fontSize: 14, fontWeight: '700', color: COLORS.ink },
-  currentFeeValue: { fontSize: 14, fontWeight: '700', color: COLORS.ink },
+  currentFeeLabel: { fontSize: 12, fontWeight: '700', color: COLORS.ink },
+  currentFeeValue: { fontSize: 12, fontWeight: '700', color: COLORS.ink },
   cardFooter: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: COLORS.lightGray },
-  actionButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, gap: 6, borderRightWidth: 1, borderRightColor: COLORS.lightGray },
-  actionButtonText: { fontSize: 13, color: COLORS.primary, fontWeight: '600' },
+  actionButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, gap: 6, borderRightWidth: 1, borderRightColor: COLORS.lightGray },
+  actionButtonText: { fontSize: 12, color: COLORS.primary, fontWeight: '600' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'center', alignItems: 'center' },
-  modalContainer: { width: '85%', maxHeight: '70%', backgroundColor: COLORS.cardBg, borderRadius: 20, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 8 },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: COLORS.lightGray },
+  modalContainer: { width: '85%', maxHeight: '70%', backgroundColor: '#FDF5F7', borderRadius: 12, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 8 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 10, borderBottomWidth: 1, borderBottomColor: COLORS.lightGray },
   modalTitleContainer: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: COLORS.ink },
+  modalTitle: { fontSize: 14, fontWeight: '700', color: COLORS.ink },
   closeButton: { width: 36, height: 36, borderRadius: 10, backgroundColor: COLORS.lightGray, justifyContent: 'center', alignItems: 'center' },
   modalContent: { maxHeight: 400 },
-  modalOption: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 16, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: COLORS.lightGray },
-  modalOptionSelected: { backgroundColor: COLORS.cream },
-  modalOptionText: { fontSize: 15, color: COLORS.ink, fontWeight: '500' },
+  modalOption: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 16, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: COLORS.lightGray },
+  modalOptionSelected: { backgroundColor: '#FFF9F0' },
+  modalOptionText: { fontSize: 12, color: COLORS.ink, fontWeight: '500' },
   modalOptionTextSelected: { fontWeight: '700', color: COLORS.primary },
-  modalFooter: { borderTopWidth: 1, borderTopColor: COLORS.lightGray, padding: 16, alignItems: 'flex-end' },
-  modalDoneButton: { paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12, backgroundColor: COLORS.primary, borderWidth: 2, borderColor: COLORS.secondary },
+  modalFooter: { borderTopWidth: 1, borderTopColor: '#F0F0F0', padding: 10, alignItems: 'flex-end' },
+  modalDoneButton: { paddingVertical: 8, paddingHorizontal: 24, borderRadius: 12, backgroundColor: COLORS.primary, borderWidth: 2, borderColor: COLORS.secondary },
   modalDoneText: { color: COLORS.white, fontWeight: '700', fontSize: 14 },
   dottedContainer: { position: 'absolute' },
   dottedRow: { flexDirection: 'row', marginBottom: 6 },

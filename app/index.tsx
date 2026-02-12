@@ -35,7 +35,7 @@ const COLORS = {
   error: '#DC2626',
   success: '#10B981',
   background: '#7A0C2E',
-  cream: '#FFF8E7',
+  cream: '#FFF5EC',
   overlay: 'rgba(122, 12, 46, 0.95)',
 };
 
@@ -561,7 +561,7 @@ export default function LoginScreen() {
                 
                 <View style={styles.versionContainer}>
                   <View style={styles.versionDot} />
-                  <Text style={styles.versionText}>Version 1.0.0</Text>
+                  <Text style={styles.versionText}>Version 13.0.3</Text>
                 </View>
               </Animated.View>
             </View>

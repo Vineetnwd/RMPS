@@ -33,7 +33,7 @@ const COLORS = {
   error: '#DC2626',
   success: '#10B981',
   background: '#7A0C2E',
-  cream: '#FFF8E7',
+  cream: '#FFF5EC',
 };
 
 // Vector Shape Components
@@ -296,7 +296,7 @@ export default function OTPScreen() {
         const { count, data, notices } = result;
         await AsyncStorage.setItem('all_students', JSON.stringify(data));
         if (count > 1) {
-          router.push({
+          router.replace({
             pathname: '/student-selection',
             params: {
               students: JSON.stringify(data),

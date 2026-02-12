@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { format } from 'date-fns';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -37,8 +37,8 @@ const COLORS = {
   error: '#DC2626',
   success: '#10B981',
   warning: '#F59E0B',
-  background: '#F8FAFC',
-  cream: '#FFF8E7',
+  background: '#FDF5F7',
+  cream: '#FFF5EC',
   cardBg: '#FFFFFF',
 };
 
@@ -64,6 +64,18 @@ const DottedPattern = ({ style, rows = 3, cols = 4, dotColor = COLORS.secondary 
 
 export default function HomeWork() {
   const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{ allowed_classes?: string; emp_id?: string; branch_id?: string }>();
+
+  // Parse allowed classes from route params (teacher restriction)
+  const allowedClasses: { class_name: string; section_name: string }[] = (() => {
+    try {
+      if (params.allowed_classes) return JSON.parse(params.allowed_classes as string);
+    } catch (e) { console.error('Error parsing allowed_classes:', e); }
+    return [];
+  })();
+  const hasClassRestriction = allowedClasses.length > 0;
+  const isTeacher = !!params.emp_id;
+
   const [classes, setClasses] = useState<any[]>([]);
   const [selectedClass, setSelectedClass] = useState<any>(null);
   const [classModalVisible, setClassModalVisible] = useState(false);
@@ -72,6 +84,7 @@ export default function HomeWork() {
   const [selectedSubject, setSelectedSubject] = useState<any>(null);
   const [subjectModalVisible, setSubjectModalVisible] = useState(false);
   const [loadingSubjects, setLoadingSubjects] = useState(false);
+  const [assignedSubjects, setAssignedSubjects] = useState<any[]>([]); // teacher's assigned subjects
   const [homeworkText, setHomeworkText] = useState('');
   const [uploadedFileInfo, setUploadedFileInfo] = useState<any>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -99,8 +112,27 @@ export default function HomeWork() {
   const floatTranslate = floatAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -10] });
   const rotate = rotateAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
 
-  useEffect(() => { fetchClasses(); }, []);
-  useEffect(() => { if (selectedClass) fetchSubjects(); }, [selectedClass]);
+  useEffect(() => {
+    if (isTeacher) {
+      fetchAssignedSubjects();
+    } else {
+      fetchClasses();
+    }
+  }, []);
+  useEffect(() => {
+    if (selectedClass) {
+      if (isTeacher) {
+        // Filter subjects from already-fetched assigned subjects for the selected class+section
+        const filtered = assignedSubjects.filter(
+          (s: any) => s.class_name === selectedClass.student_class && s.section_name === selectedClass.student_section
+        ).map((s: any) => ({ id: s.subject_id, subject_name: s.subject_name }));
+        setSubjects(filtered);
+        setSelectedSubject(null);
+      } else {
+        fetchSubjects();
+      }
+    }
+  }, [selectedClass]);
   useEffect(() => { if (submitSuccess) { const timer = setTimeout(() => setSubmitSuccess(false), 3000); return () => clearTimeout(timer); } }, [submitSuccess]);
 
   const fetchClasses = async () => {
@@ -113,8 +145,53 @@ export default function HomeWork() {
         body: JSON.stringify({ branch_id: branchId }),
       });
       const result = await response.json();
-      if (result.status === 'success') setClasses(result.data);
+      if (result.status === 'success') {
+        let classList = result.data;
+        // Filter to only allowed classes if teacher has restrictions
+        if (hasClassRestriction) {
+          classList = classList.filter((cls: any) =>
+            allowedClasses.some(
+              (ac) => ac.class_name === cls.student_class && ac.section_name === cls.student_section
+            )
+          );
+        }
+        setClasses(classList);
+      }
       else showAlert('Error', 'Failed to fetch classes');
+    } catch (err: any) { showAlert('Error', 'Network error: ' + err.message); }
+    finally { setLoadingClasses(false); }
+  };
+
+  // Fetch teacher's assigned subjects — derives both class list and subject list
+  const fetchAssignedSubjects = async () => {
+    try {
+      setLoadingClasses(true);
+      const branchId = params.branch_id || await AsyncStorage.getItem('branch_id');
+      const response = await fetch('https://rmpublicschool.org/binex/api.php?task=assigned_subject', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emp_id: params.emp_id, branch_id: branchId }),
+      });
+      const result = await response.json();
+      if (result.status === 'success' && Array.isArray(result.data)) {
+        setAssignedSubjects(result.data);
+        // Derive unique class+section combos for the class picker
+        const uniqueMap = new Map<string, any>();
+        result.data.forEach((item: any) => {
+          const key = `${item.class_name}-${item.section_name}`;
+          if (!uniqueMap.has(key)) {
+            uniqueMap.set(key, {
+              student_class: item.class_name,
+              student_section: item.section_name,
+              total: '',
+            });
+          }
+        });
+        setClasses(Array.from(uniqueMap.values()));
+      } else {
+        setAssignedSubjects([]);
+        setClasses([]);
+      }
     } catch (err: any) { showAlert('Error', 'Network error: ' + err.message); }
     finally { setLoadingClasses(false); }
   };
@@ -146,9 +223,23 @@ export default function HomeWork() {
     try {
       setSubmitting(true);
       const branchId = await AsyncStorage.getItem('branch_id');
-      const homeworkData = { task: "home_work", hw_class: selectedClass.student_class, hw_section: selectedClass.student_section, subject_id: selectedSubject.id, hw_text: homeworkText, hw_file: uploadedFileInfo?.file_name || '', branch_id: branchId };
+      const userId = await AsyncStorage.getItem('user_id');
+
+      const homeworkData = {
+        task: "home_work",
+        hw_class: selectedClass.student_class,
+        hw_section: selectedClass.student_section,
+        subject_id: selectedSubject.id,
+        hw_text: homeworkText,
+        hw_file: uploadedFileInfo?.file_name || '',
+        branch_id: branchId,
+        created_by: userId
+      };
+
+      console.log('Submitting homework:', JSON.stringify(homeworkData, null, 2));
       const response = await fetch('https://rmpublicschool.org/binex/api.php?task=home_work', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(homeworkData) });
       const result = await response.json();
+      console.log('Homework response:', JSON.stringify(result, null, 2));
       if (result.status === 'success') { setSubmitSuccess(true); resetForm(); }
       else showAlert('Error', 'Failed to add homework: ' + (result.message || 'Unknown error'));
     } catch (err: any) { showAlert('Error', 'Network error: ' + err.message); }
@@ -248,6 +339,9 @@ export default function HomeWork() {
               <View style={styles.headerTop}>
                 <TouchableOpacity style={styles.backButton} onPress={() => router.back()}><Ionicons name="arrow-back" size={22} color={COLORS.white} /></TouchableOpacity>
                 <View style={styles.headerTitleContainer}><Text style={styles.headerTitle}>HomeWork</Text><Text style={styles.headerSubtitle}>Assign tasks to students</Text></View>
+                <TouchableOpacity style={[styles.infoButton, { marginRight: 8 }]} onPress={() => router.push('/TeacherHomeworkHistory')}>
+                  <Ionicons name="time" size={22} color={COLORS.white} />
+                </TouchableOpacity>
                 <TouchableOpacity style={styles.infoButton} onPress={() => Alert.alert("Homework", "Assign homework to students by selecting class, subject and entering details.")}><Ionicons name="information-circle" size={22} color={COLORS.white} /></TouchableOpacity>
               </View>
               <Animated.View style={[styles.infoCard, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
@@ -320,87 +414,87 @@ export default function HomeWork() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: COLORS.primary },
-  container: { flex: 1, backgroundColor: COLORS.background },
+  container: { flex: 1, backgroundColor: '#FDF5F7' },
   contentContainer: { padding: 20 },
-  header: { backgroundColor: COLORS.primary, paddingTop: 10, paddingBottom: 20, borderBottomLeftRadius: 28, borderBottomRightRadius: 28, overflow: 'hidden' },
+  header: { backgroundColor: COLORS.primary, paddingTop: 10, paddingBottom: 10, borderBottomLeftRadius: 20, borderBottomRightRadius: 20, overflow: 'hidden' },
   headerDecorations: { ...StyleSheet.absoluteFillObject },
-  headerBlob: { position: 'absolute', width: 140, height: 140, borderRadius: 70, backgroundColor: COLORS.secondary, opacity: 0.12, top: -40, right: -50 },
+  headerBlob: { position: 'absolute', width: 100, height: 100, borderRadius: 50, backgroundColor: COLORS.secondary, opacity: 0.12, top: -40, right: -50 },
   headerRing: { position: 'absolute', top: 30, left: -30 },
   headerDiamond1: { position: 'absolute', top: 80, right: 60 },
   headerDiamond2: { position: 'absolute', top: 120, right: 100 },
   headerDots: { position: 'absolute', bottom: 60, left: 30 },
   headerContent: { paddingHorizontal: 20 },
   headerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
-  backButton: { width: 44, height: 44, borderRadius: 14, backgroundColor: 'rgba(255, 255, 255, 0.15)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)' },
-  infoButton: { width: 44, height: 44, borderRadius: 14, backgroundColor: 'rgba(255, 255, 255, 0.15)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)' },
+  backButton: { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255, 255, 255, 0.15)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)' },
+  infoButton: { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255, 255, 255, 0.15)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)' },
   headerTitleContainer: { flex: 1, alignItems: 'center' },
-  headerTitle: { fontSize: 20, fontWeight: '800', color: COLORS.white, letterSpacing: 0.3 },
+  headerTitle: { fontSize: 15, fontWeight: '800', color: COLORS.white, letterSpacing: 0.3 },
   headerSubtitle: { fontSize: 12, color: 'rgba(255, 255, 255, 0.8)', marginTop: 2, fontWeight: '500' },
-  infoCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.cardBg, padding: 16, borderRadius: 16, gap: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 4 },
-  infoIconContainer: { width: 48, height: 48, borderRadius: 14, backgroundColor: 'rgba(212, 175, 55, 0.15)', justifyContent: 'center', alignItems: 'center' },
-  infoText: { flex: 1, fontSize: 13, color: COLORS.gray, lineHeight: 20 },
-  card: { backgroundColor: COLORS.cardBg, borderRadius: 20, padding: 20, borderWidth: 1, borderColor: 'rgba(0, 0, 0, 0.04)', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 4 },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 24, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: COLORS.lightGray, gap: 12 },
+  infoCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FDF5F7', padding: 10, borderRadius: 12, gap: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.03, shadowRadius: 8, elevation: 4 },
+  infoIconContainer: { width: 40, height: 40, borderRadius: 10, backgroundColor: 'rgba(212, 175, 55, 0.15)', justifyContent: 'center', alignItems: 'center' },
+  infoText: { flex: 1, fontSize: 12, color: COLORS.gray, lineHeight: 20 },
+  card: { backgroundColor: '#FDF5F7', borderRadius: 12, padding: 10, borderWidth: 1, borderColor: 'rgba(0, 0, 0, 0.04)', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.03, shadowRadius: 12, elevation: 4 },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: '#F0F0F0', gap: 12 },
   cardHeaderIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(122, 12, 46, 0.1)', justifyContent: 'center', alignItems: 'center' },
-  cardHeaderText: { fontSize: 18, fontWeight: '700', color: COLORS.ink },
+  cardHeaderText: { fontSize: 12, fontWeight: '700', color: COLORS.ink },
   section: { marginBottom: 20 },
   labelContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 8 },
   labelIconContainer: { width: 26, height: 26, borderRadius: 8, backgroundColor: 'rgba(212, 175, 55, 0.15)', justifyContent: 'center', alignItems: 'center' },
   sectionTitle: { fontSize: 14, fontWeight: '700', color: COLORS.ink },
   sectionSubtitle: { fontSize: 12, color: COLORS.gray, marginBottom: 10, marginLeft: 34 },
-  selector: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.cardBg, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: 'rgba(0, 0, 0, 0.04)', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2 },
+  selector: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FDF5F7', borderRadius: 10, padding: 10, borderWidth: 1, borderColor: 'rgba(0, 0, 0, 0.04)', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 6, elevation: 2 },
   selectorIconContainer: { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(212, 175, 55, 0.1)', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  selectorText: { flex: 1, fontSize: 15, color: COLORS.ink, fontWeight: '500' },
+  selectorText: { flex: 1, fontSize: 12, color: COLORS.ink, fontWeight: '500' },
   selectorPlaceholder: { color: COLORS.gray },
   disabledSelector: { backgroundColor: COLORS.lightGray, opacity: 0.7 },
-  dateContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.cream, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: 'rgba(0, 0, 0, 0.04)', gap: 12 },
-  dateText: { fontSize: 15, color: COLORS.ink, fontWeight: '700' },
-  textAreaContainer: { backgroundColor: COLORS.cardBg, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: 'rgba(0, 0, 0, 0.04)', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2 },
-  textArea: { fontSize: 15, color: COLORS.ink, minHeight: 120, textAlignVertical: 'top', lineHeight: 24 },
-  charCountContainer: { borderTopWidth: 1, borderTopColor: COLORS.lightGray, marginTop: 12, paddingTop: 10 },
+  dateContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF9F0', borderRadius: 10, padding: 10, borderWidth: 1, borderColor: 'rgba(0, 0, 0, 0.04)', gap: 12 },
+  dateText: { fontSize: 12, color: COLORS.ink, fontWeight: '700' },
+  textAreaContainer: { backgroundColor: '#FDF5F7', borderRadius: 12, padding: 10, borderWidth: 1, borderColor: 'rgba(0, 0, 0, 0.04)', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 6, elevation: 2 },
+  textArea: { fontSize: 12, color: COLORS.ink, minHeight: 120, textAlignVertical: 'top', lineHeight: 24 },
+  charCountContainer: { borderTopWidth: 1, borderTopColor: '#F0F0F0', marginTop: 12, paddingTop: 10 },
   charCount: { fontSize: 12, color: COLORS.gray, textAlign: 'right', fontWeight: '500' },
   disabledInput: { backgroundColor: COLORS.lightGray, opacity: 0.7 },
   fileUploader: { marginTop: 5 },
   disabledUploader: { opacity: 0.7, pointerEvents: 'none' as const },
-  fileInfoDisplay: { flexDirection: 'row', backgroundColor: COLORS.cream, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: 'rgba(0, 0, 0, 0.04)', justifyContent: 'space-between', alignItems: 'center' },
+  fileInfoDisplay: { flexDirection: 'row', backgroundColor: '#FFF9F0', borderRadius: 10, padding: 10, borderWidth: 1, borderColor: 'rgba(0, 0, 0, 0.04)', justifyContent: 'space-between', alignItems: 'center' },
   fileInfoContent: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  pdfIconContainer: { width: 44, height: 44, backgroundColor: COLORS.error, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  imagePreview: { width: 44, height: 44, borderRadius: 10, borderWidth: 1, borderColor: COLORS.lightGray },
+  pdfIconContainer: { width: 36, height: 36, backgroundColor: COLORS.error, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  imagePreview: { width: 36, height: 36, borderRadius: 10, borderWidth: 1, borderColor: COLORS.lightGray },
   fileDetails: { marginLeft: 14, flex: 1 },
-  fileName: { fontSize: 14, color: COLORS.ink, fontWeight: '600' },
+  fileName: { fontSize: 12, color: COLORS.ink, fontWeight: '600' },
   fileMetaContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
   fileSize: { fontSize: 12, color: COLORS.gray },
   uploadedText: { fontSize: 12, color: COLORS.success, fontWeight: '600' },
   removeFileButton: { padding: 4 },
-  submitButton: { marginTop: 10, borderRadius: 16, overflow: 'hidden', shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6 },
-  submitButtonInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primary, paddingVertical: 18, gap: 10, borderWidth: 2, borderColor: COLORS.secondary, borderRadius: 16 },
-  submitButtonText: { fontSize: 16, fontWeight: '700', color: COLORS.white },
+  submitButton: { marginTop: 10, borderRadius: 12, overflow: 'hidden', shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6 },
+  submitButtonInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primary, paddingVertical: 18, gap: 6, borderWidth: 2, borderColor: COLORS.secondary, borderRadius: 16 },
+  submitButtonText: { fontSize: 12, fontWeight: '700', color: COLORS.white },
   disabledButton: { opacity: 0.5, shadowOpacity: 0 },
-  successMessage: { marginTop: 20, backgroundColor: COLORS.success, borderRadius: 16, padding: 18, flexDirection: 'row', alignItems: 'center', gap: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
-  successText: { color: COLORS.white, fontSize: 16, fontWeight: '600' },
+  successMessage: { marginTop: 10, backgroundColor: COLORS.success, borderRadius: 12, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 2 },
+  successText: { color: COLORS.white, fontSize: 12, fontWeight: '600' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
   modalContainer: { justifyContent: 'flex-end', height: '70%' },
-  modalContent: { backgroundColor: COLORS.cardBg, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, height: '100%' },
+  modalContent: { backgroundColor: '#FDF5F7', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 10, height: '100%' },
   modalHandle: { width: 40, height: 5, backgroundColor: COLORS.lightGray, borderRadius: 3, alignSelf: 'center', marginBottom: 16 },
   modalHeader: { marginBottom: 16 },
   modalTitleContainer: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: COLORS.ink },
+  modalTitle: { fontSize: 14, fontWeight: '700', color: COLORS.ink },
   modalList: { paddingVertical: 10 },
-  modalItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 12, borderRadius: 14 },
-  modalItemPressed: { backgroundColor: COLORS.cream },
+  modalItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 14 },
+  modalItemPressed: { backgroundColor: '#FFF9F0' },
   classIconContainer: { width: 40, height: 40, borderRadius: 12, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
   subjectIconContainer: { width: 40, height: 40, borderRadius: 12, backgroundColor: COLORS.success, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
   classIcon: { color: COLORS.white, fontWeight: '700', fontSize: 16 },
   modalItemContent: { flex: 1 },
-  modalItemText: { fontSize: 15, color: COLORS.ink, fontWeight: '600' },
-  modalItemSubtext: { fontSize: 13, color: COLORS.gray, marginTop: 2 },
+  modalItemText: { fontSize: 12, color: COLORS.ink, fontWeight: '600' },
+  modalItemSubtext: { fontSize: 12, color: COLORS.gray, marginTop: 2 },
   modalSeparator: { height: 1, backgroundColor: COLORS.lightGray, marginVertical: 4 },
-  modalCloseButton: { marginTop: 16, padding: 16, backgroundColor: COLORS.lightGray, borderRadius: 14, alignItems: 'center' },
-  modalCloseButtonText: { fontSize: 16, color: COLORS.gray, fontWeight: '600' },
+  modalCloseButton: { marginTop: 10, padding: 10, backgroundColor: COLORS.lightGray, borderRadius: 10, alignItems: 'center' },
+  modalCloseButtonText: { fontSize: 12, color: COLORS.gray, fontWeight: '600' },
   loadingContainer: { padding: 40, alignItems: 'center' },
-  loadingText: { marginTop: 12, fontSize: 14, color: COLORS.gray, fontWeight: '500' },
+  loadingText: { marginTop: 12, fontSize: 12, color: COLORS.gray, fontWeight: '500' },
   noDataContainer: { padding: 40, alignItems: 'center' },
-  noDataText: { marginTop: 12, color: COLORS.gray, fontSize: 16, textAlign: 'center' },
+  noDataText: { marginTop: 12, color: COLORS.gray, fontSize: 12, textAlign: 'center' },
   dottedContainer: { position: 'absolute' },
   dottedRow: { flexDirection: 'row', marginBottom: 6 },
   dot: { width: 4, height: 4, borderRadius: 2, marginHorizontal: 4 },
